@@ -1,0 +1,28 @@
+{
+	"extends": "./.svelte-kit/tsconfig.json",
+	"compilerOptions": {
+		"types": ["@sveltejs/kit"],
+		"rewriteRelativeImportExtensions": true,
+		"allowJs": true,
+		"checkJs": true,
+		"esModuleInterop": true,
+		"forceConsistentCasingInFileNames": true,
+		"resolveJsonModule": true,
+		"skipLibCheck": true,
+		"sourceMap": true,
+		"strict": true,
+		"moduleResolution": "bundler",
+		"noUnusedLocals": false, // Similar to noUnusedParameters, but for local variables.
+		"noUnusedParameters": false, // Do not allow unused parameters in functions.
+		"noUncheckedIndexedAccess": true, // it ensures that indexed access types are checked for undefined values,
+		"allowUnreachableCode": false, // When set to false, this option raises errors for code that is unreachable, meaning it cannot be executed.
+		"noFallthroughCasesInSwitch": true, // This option reports errors for switch statement cases that fall through without a break, return, or throw statement.
+		"noErrorTruncation": true // When enabled, this option prevents TypeScript from truncating error messages, providing full details about the error.
+	},
+	"exclude": ["node_modules", "dist", "build", ".vercel"]
+	// Path aliases are handled by https://svelte.dev/docs/kit/configuration#alias
+	// except $lib which is handled by https://svelte.dev/docs/kit/configuration#files
+	//
+	// To make changes to top-level options such as include and exclude, we recommend extending
+	// the generated config; see https://svelte.dev/docs/kit/configuration#typescript
+}
