@@ -130,7 +130,7 @@
 	<p class="welcome-hint">
 		{lang === 'en' ? 'Drag & click to explore' : 'ドラッグして探索'}
 	</p>
-	<a class="ctrl-btn welcome-cv" href="/assets/TUY_Pascal-CV.pdf" download>CV</a>
+	<a class="ctrl-btn welcome-cv" href="/assets/20260422_バスカル_履歴書.pdf" download>CV</a>
 </div>
 
 <!-- ── Controls (top-right) ─────────────────────────── -->
