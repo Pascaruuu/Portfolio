@@ -1,0 +1,208 @@
+/*
+ * theme.css — Claude-inspired color palette for the Invoice Recording System.
+ *
+ * Light mode: warm cream tones, coral-orange primary accent.
+ * Dark  mode: warm charcoal tones, same coral-orange accent.
+ *
+ * Switch themes by setting data-theme="dark" on <html>.
+ * Naming mirrors Tailwind's scale for familiarity; values are overridden to
+ * match Claude's warm aesthetic — variable names are intentionally kept stable
+ * so all existing components pick up the theme with zero component changes.
+ */
+
+:root {
+	/* ── White / near-white card bg ────────────────────────────────────────── */
+	--white: #ffffff; /* card / section / input background */
+
+	/* ── Gray (near-neutral, barely warm) ───────────────────────────────────── */
+	--gray-50: #f5f5f3; /* subtle hover bg */
+	--gray-50-alt: #f5f5f3;
+	--gray-100: #efefed; /* input bg, row hover */
+	--gray-200: #e5e5e3; /* borders */
+	--gray-300: #d4d4ce; /* stronger borders */
+	--gray-400: #9b9b95; /* muted icons / placeholders */
+	--gray-500: #6b6b66; /* secondary text */
+	--gray-600: #545450; /* medium text */
+	--gray-700: #3b3b38;
+	--gray-800: #262624;
+	--gray-900: #1a1a18; /* primary text */
+	--gray-meta: #9b9b95;
+
+	/* ── Slate (near-neutral, structural) ───────────────────────────────────── */
+	--slate-50: #f7f7f5; /* page / layout background */
+	--slate-100: #f0f0ee;
+	--slate-200: #e5e5e3;
+	--slate-300: #d4d4ce;
+	--slate-400: #9b9b95;
+	--slate-500: #74746f;
+	--slate-600: #545450;
+	--slate-700: #3b3b38;
+	--slate-800: #262624;
+	--slate-900: #1a1a18;
+	--slate-warm-50: #f7f7f5;
+
+	/* ── Orange / Coral (Claude primary accent — replaces blue) ─────────────── */
+	--blue-50: #fef4ee;
+	--blue-100: #fde2cc;
+	--blue-200: #fac09a;
+	--blue-300: #f49462;
+	--blue-400: #e87848;
+	--blue-500: #d97757; /* Claude primary coral-orange */
+	--blue-600: #c0613f;
+	--blue-700: #a64d2d;
+	--blue-800: #8a3c20;
+	--blue-900: #6d2c12;
+
+	/* ── Indigo (deeper orange for login button gradient end-stop) ─────────── */
+	--indigo-500: #c0613f;
+
+	/* ── Violet / Purple (kept — semantic for alias / PDF features) ─────────── */
+	--violet-50: #f5f3ff;
+	--violet-100: #ede9fe;
+	--violet-200: #ddd6fe;
+	--violet-400: #a78bfa;
+	--violet-500: #8b5cf6;
+	--violet-600: #7c3aed;
+	--violet-700: #6d28d9;
+	--violet-800: #5b21b6;
+	--violet-900: #4c1d95;
+	--purple-50: #faf5ff;
+
+	/* ── Sky (kept for any sky-blue usage) ─────────────────────────────────── */
+	--sky-600: #0284c7;
+	--sky-700: #0369a1;
+	--sky-800: #075985;
+
+	/* ── Green (success) ────────────────────────────────────────────────────── */
+	--green-50: #f0fdf4;
+	--green-100: #dcfce7;
+	--green-200: #bbf7d0;
+	--green-500: #22c55e;
+	--green-600: #16a34a;
+	--green-800: #166534;
+
+	/* ── Emerald ────────────────────────────────────────────────────────────── */
+	--emerald-50: #ecfdf5;
+	--emerald-100: #d1fae5;
+	--emerald-400: #34d399;
+	--emerald-500: #10b981;
+	--emerald-600: #059669;
+	--emerald-700: #047857;
+
+	/* ── Amber (warning) ────────────────────────────────────────────────────── */
+	--amber-50: #fffbeb;
+	--amber-100: #fef3c7;
+	--amber-200: #fde68a;
+	--amber-300: #fcd34d;
+	--amber-500: #f59e0b;
+	--amber-600: #d97706;
+	--amber-700: #b45309;
+	--amber-800: #92400e;
+	--amber-900: #78350f;
+
+	/* ── Orange (status / scan) ─────────────────────────────────────────────── */
+	--orange-50: #fff7ed;
+	--orange-200: #fcd9b6;
+	--orange-400: #fb923c;
+	--orange-500: #f97316;
+	--orange-600: #ea580c;
+
+	/* ── Red (error) ────────────────────────────────────────────────────────── */
+	--red-50: #fef2f2;
+	--red-100: #fee2e2;
+	--red-200: #fecaca;
+	--red-300: #fca5a5;
+	--red-500: #ef4444;
+	--red-600: #dc2626;
+	--red-700: #b91c1c;
+	--red-800: #991b1b;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Dark mode — Claude warm charcoal.
+ * Neutrals become dark warm tones; coral-orange accent stays consistent.
+ * ───────────────────────────────────────────────────────────────────────────*/
+[data-theme='dark'] {
+	/* ── White / card bg ────────────────────────────────────────────────────── */
+	--white: #252523; /* card / section / input background */
+
+	/* ── Gray (warm dark) ───────────────────────────────────────────────────── */
+	--gray-50: #1e1e1c;
+	--gray-50-alt: #1e1e1c;
+	--gray-100: #2a2a27;
+	--gray-200: #38382f; /* borders */
+	--gray-300: #4a4a42; /* stronger borders */
+	--gray-400: #6b6860; /* muted icons / placeholders */
+	--gray-500: #9a9690; /* secondary text */
+	--gray-600: #b0aca2;
+	--gray-700: #cec9be;
+	--gray-800: #e0dbd2;
+	--gray-900: #f5f2ec; /* primary text */
+	--gray-meta: #6b6860;
+
+	/* ── Slate (warm dark) ──────────────────────────────────────────────────── */
+	--slate-50: #1c1c1a; /* page / layout background */
+	--slate-100: #222220;
+	--slate-200: #38382f;
+	--slate-300: #4a4a42;
+	--slate-400: #6b6860;
+	--slate-500: #9a9690;
+	--slate-600: #b0aca2;
+	--slate-700: #cec9be;
+	--slate-800: #e0dbd2;
+	--slate-900: #f5f2ec;
+	--slate-warm-50: #222220;
+
+	/* ── Orange / Coral (brighter on dark bg) ───────────────────────────────── */
+	--blue-50: #2a1608;
+	--blue-100: #3d2010;
+	--blue-200: #6b3820;
+	--blue-300: #96562e;
+	--blue-400: #c07245;
+	--blue-500: #e0855e; /* slightly brighter for dark bg legibility */
+	--blue-600: #d97757;
+	--blue-700: #c0613f;
+	--blue-800: #f4a882; /* light tint for selected/active text */
+	--blue-900: #fad5bd;
+
+	/* ── Indigo (darker orange gradient stop) ──────────────────────────────── */
+	--indigo-500: #c96845;
+
+	/* ── Violet (kept — semantic) ───────────────────────────────────────────── */
+	--violet-50: #1a1040;
+	--violet-100: #231555;
+	--violet-200: #2e1a6e;
+	--violet-800: #c4b5fd; /* canonical name text — flipped to light */
+	--violet-900: #ddd6fe; /* OCR name text — flipped to light */
+	--purple-50: #1a1040;
+
+	/* ── Green tints + bright text ──────────────────────────────────────────── */
+	--green-50: #052210;
+	--green-100: #0d3320;
+	--green-200: #166534;
+	--green-800: #4ade80;
+
+	/* ── Emerald tints ──────────────────────────────────────────────────────── */
+	--emerald-50: #022c22;
+	--emerald-100: #064e3b;
+
+	/* ── Amber tints + text ─────────────────────────────────────────────────── */
+	--amber-50: #1c1200;
+	--amber-100: #2a1c00;
+	--amber-200: #3d2800;
+	--amber-300: #5e3f00; /* input / button borders — muted, not bright yellow */
+	--amber-500: #d9940f; /* approve CTA button bg */
+	--amber-600: #bf8009; /* button hover */
+	--amber-700: #c89620; /* hint / meta text — readable on dark amber bg */
+	--amber-800: #fde68a; /* panel title text */
+	--amber-900: #fef3c7; /* active mode-btn text */
+
+	/* ── Orange tints ───────────────────────────────────────────────────────── */
+	--orange-50: #1c0d00;
+
+	/* ── Red tints + bright text ────────────────────────────────────────────── */
+	--red-50: #1c0505;
+	--red-100: #2e0909;
+	--red-200: #450e0e;
+	--red-800: #fca5a5;
+}

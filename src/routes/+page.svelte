@@ -25,7 +25,11 @@
 	let vh             = $state(0);
 
 	let canvasEl  = $state<HTMLCanvasElement | null>(null);
-	let sphereCtl = $state<{ setPanelOpen: (o: boolean) => void } | null>(null);
+	let sphereCtl = $state<{
+		setPanelOpen: (o: boolean) => void;
+		triggerWave: (id: SectionId) => void;
+		focusSection: (id: SectionId | null) => void;
+	} | null>(null);
 
 	// ── Derived ────────────────────────────────────────────
 	const roleText = $derived(
@@ -42,7 +46,7 @@
 		if (!canvasEl) return;
 
 		const controls = initSphere(canvasEl, {
-			onHotspotClick:    (id) => openPanel(id),
+			onHotspotClick:    (id) => openPanel(id, false),
 			onFrame:           (states) => { hotspotStates = states; },
 			onDragStateChange: (drag, hover) => { isDragging = drag; isHovering = hover; },
 			onFirstDrag:       () => { hintDismissed = true; },
@@ -81,12 +85,15 @@
 	});
 
 	// ── Panel ──────────────────────────────────────────────
-	function openPanel(id: SectionId): void {
+	function openPanel(id: SectionId, react = true): void {
+		if (react) sphereCtl?.triggerWave(id);
+		sphereCtl?.focusSection(id);
 		currentSection = id;
 		panelOpen      = true;
 	}
 
 	function closePanel(): void {
+		sphereCtl?.focusSection(null);
 		panelOpen      = false;
 		currentSection = null;
 	}
@@ -130,7 +137,7 @@
 	<p class="welcome-hint">
 		{lang === 'en' ? 'Drag & click to explore' : 'ドラッグして探索'}
 	</p>
-	<a class="ctrl-btn welcome-cv" href="/assets/20260422_バスカル_履歴書.pdf" download>CV</a>
+	<a class="ctrl-btn welcome-cv" href="/assets/20260422_バスカル_履歴書.pdf" download>Download CV</a>
 </div>
 
 <!-- ── Controls (top-right) ─────────────────────────── -->

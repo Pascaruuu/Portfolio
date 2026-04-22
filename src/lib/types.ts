@@ -89,4 +89,6 @@ export interface SphereControls {
 	dispose:       () => void;
 	resize:        () => void;
 	setPanelOpen:  (open: boolean) => void;
+	triggerWave:   (id: SectionId) => void;
+	focusSection:  (id: SectionId | null) => void;
 }
