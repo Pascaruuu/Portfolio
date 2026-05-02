@@ -56,6 +56,10 @@ export function initSphere(
 	const targetLookAt = new THREE.Vector3();
 	const projectedSphereCenter = new THREE.Vector3();
 	const projectedSphereEdge = new THREE.Vector3();
+	const sphereCenterView = new THREE.Vector3();
+	const cameraRotMatrix = new THREE.Matrix4();
+	const sphereInvRotMatrix = new THREE.Matrix4();
+	const viewToSphereObject = new THREE.Matrix4();
 
 	const sphereGroup = new THREE.Group();
 	scene.add(sphereGroup);
@@ -190,12 +194,13 @@ export function initSphere(
 			1 - screenCenterY / window.innerHeight,
 			projectedRadius / window.innerHeight
 		);
-		// Extract pure rotation inverse from sphereGroup
-		const rotMatrix = new THREE.Matrix4().extractRotation(sphereGroup.matrixWorld);
-		const invRotMatrix = rotMatrix.clone().invert();
-		// Pass camera distance normalized by SPHERE_R
-		const camNorm = camera.position.clone().divideScalar(SPHERE_R);
-		setWorldState(invRotMatrix, camNorm);
+		camera.updateMatrixWorld();
+		sphereGroup.updateMatrixWorld();
+		sphereCenterView.set(0, 0, 0).applyMatrix4(camera.matrixWorldInverse).divideScalar(SPHERE_R);
+		cameraRotMatrix.extractRotation(camera.matrixWorld);
+		sphereInvRotMatrix.extractRotation(sphereGroup.matrixWorld).invert();
+		viewToSphereObject.multiplyMatrices(sphereInvRotMatrix, cameraRotMatrix);
+		setWorldState(viewToSphereObject, sphereCenterView);
 		if (asciiFrame === 0) {
 			// Sample terrain FBM at each hotspot surface point in object space
 			// surfacePoint in unit-sphere space = hotspot world pos normalized by SPHERE_R

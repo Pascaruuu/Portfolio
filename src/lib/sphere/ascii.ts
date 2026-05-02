@@ -9,8 +9,8 @@ uniform float uCharactersCount;
 uniform vec3 uColor;
 uniform vec2 sphereCenter;
 uniform float sphereRadius;
-uniform mat4 sphereWorldMatrixInverse;
-uniform vec3 cameraPos;
+uniform mat4 viewToSphereObject;
+uniform vec3 sphereCenterView;
 
 float hash3(vec3 p) {
   p = fract(p * vec3(443.897, 441.423, 437.195));
@@ -51,7 +51,7 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   vec4 scene = texture2D(inputBuffer, cellCenter);
   float luminance = dot(scene.rgb, vec3(0.299, 0.587, 0.114));
 
-  // Reconstruct world-space ray to find surface point
+  // Reconstruct a view-space ray to find the surface point.
   vec2 ndc = uv * 2.0 - 1.0;
   vec2 sc = sphereCenter * 2.0 - 1.0;
   float sr = sphereRadius * 2.0;
@@ -70,12 +70,6 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   vec3 rayOrigin = vec3(0.0); // camera at origin in view space
   vec3 rayDir = normalize(vec3(ndc.x * aspect * tanHalfFov, ndc.y * tanHalfFov, -1.0));
 
-  // Sphere center in view space is approximately at (0,0,-cameraZ_normalized)
-  // We pass camera position normalized by SPHERE_R, so sphere is at origin
-  // Camera is at vec3(0,0, length(cameraPos)) in view space
-  float camDist = length(cameraPos); // already normalized by SPHERE_R in JS
-  vec3 sphereCenterView = vec3(0.0, 0.0, -camDist);
-
   // Ray-sphere intersection in view space
   vec3 oc = rayOrigin - sphereCenterView;
   float b2 = dot(oc, rayDir);
@@ -87,9 +81,7 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   if (disc > 0.0) {
     float t = -b2 - sqrt(disc);
     vec3 hitView = rayOrigin + t * rayDir;
-    // Transform hit point to object space using sphere's inverse world rotation
-    // sphereWorldMatrixInverse contains only rotation (scale already divided out)
-    surfacePoint = (sphereWorldMatrixInverse * vec4(hitView - sphereCenterView, 0.0)).xyz;
+    surfacePoint = (viewToSphereObject * vec4(hitView - sphereCenterView, 0.0)).xyz;
     surfaceNoise = fbm(surfacePoint * 2.5);
   }
 
@@ -159,8 +151,8 @@ class ASCIIEffect extends Effect {
 		const c = new THREE.Color(color);
 		const sphereCenter = new THREE.Uniform(new THREE.Vector2(0.5, 0.5));
 		const sphereRadius = new THREE.Uniform(0.38);
-		const sphereWorldMatrixInverse = new THREE.Uniform(new THREE.Matrix4());
-		const cameraPos = new THREE.Uniform(new THREE.Vector3());
+		const viewToSphereObject = new THREE.Uniform(new THREE.Matrix4());
+		const sphereCenterView = new THREE.Uniform(new THREE.Vector3());
 
 		super('ASCIIEffect', FRAGMENT, {
 			blendFunction: BlendFunction.NORMAL,
@@ -171,8 +163,8 @@ class ASCIIEffect extends Effect {
 				['uColor', new THREE.Uniform(new THREE.Vector3(c.r, c.g, c.b))],
 				['sphereCenter', sphereCenter],
 				['sphereRadius', sphereRadius],
-				['sphereWorldMatrixInverse', sphereWorldMatrixInverse],
-				['cameraPos', cameraPos],
+				['viewToSphereObject', viewToSphereObject],
+				['sphereCenterView', sphereCenterView],
 			]),
 		});
 
@@ -185,9 +177,9 @@ class ASCIIEffect extends Effect {
 		this.sphereRadiusUniform.value = r;
 	}
 
-	setWorldState(matrixInverse: THREE.Matrix4, camPos: THREE.Vector3): void {
-		this.uniforms.get('sphereWorldMatrixInverse')!.value.copy(matrixInverse);
-		this.uniforms.get('cameraPos')!.value.copy(camPos);
+	setWorldState(viewToSphereObject: THREE.Matrix4, sphereCenterView: THREE.Vector3): void {
+		this.uniforms.get('viewToSphereObject')!.value.copy(viewToSphereObject);
+		this.uniforms.get('sphereCenterView')!.value.copy(sphereCenterView);
 	}
 }
 
@@ -195,7 +187,7 @@ export function createAsciiRenderer(
 	renderer: THREE.WebGLRenderer,
 	scene: THREE.Scene,
 	camera: THREE.Camera
-): { composer: EffectComposer; dispose(): void; setSphereScreenPos(cx: number, cy: number, r: number): void; setWorldState(matrixInverse: THREE.Matrix4, camPos: THREE.Vector3): void } {
+): { composer: EffectComposer; dispose(): void; setSphereScreenPos(cx: number, cy: number, r: number): void; setWorldState(viewToSphereObject: THREE.Matrix4, sphereCenterView: THREE.Vector3): void } {
 	const composer = new EffectComposer(renderer);
 	composer.addPass(new RenderPass(scene, camera));
 	const effect = new ASCIIEffect(' .,·:;!|=+xo#%&@██', 6, ASCII_COLOR);
@@ -206,8 +198,8 @@ export function createAsciiRenderer(
 		setSphereScreenPos(cx: number, cy: number, r: number): void {
 			effect.setSphereScreenPos(cx, cy, r);
 		},
-		setWorldState(matrixInverse: THREE.Matrix4, camPos: THREE.Vector3): void {
-			effect.setWorldState(matrixInverse, camPos);
+		setWorldState(viewToSphereObject: THREE.Matrix4, sphereCenterView: THREE.Vector3): void {
+			effect.setWorldState(viewToSphereObject, sphereCenterView);
 		},
 		dispose() {
 			composer.dispose();
