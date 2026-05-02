@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { ACCENT, HOTSPOT_DEFS, SPHERE_R } from './constants.js';
 import type { HotspotEntry } from './types.js';
-import { makeGlowTex, makeStreakTex } from './textures.js';
+import { makeCircleTex } from './textures.js';
 import { latLonToVec3 } from './helpers.js';
 import type { SectionId } from '../types.js';
 
@@ -9,32 +9,23 @@ export function buildHotspots(sphereGroup: THREE.Group): {
 	hotspotEntries: HotspotEntry[];
 	clickMeshes: THREE.Mesh[];
 } {
-	const streakTex = makeStreakTex();
-	const glowTex = makeGlowTex();
+	const dotTex = makeCircleTex(128);
 
 	const hotspotEntries: HotspotEntry[] = HOTSPOT_DEFS.map(def => {
 		const pos = latLonToVec3(def.lat, def.lon, SPHERE_R);
 
-		// Visual glow sprite — always faces the camera
 		const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
-			map:         glowTex,
 			transparent: true,
-			opacity:     0.72,
-			blending:    THREE.AdditiveBlending,
-			depthTest:   true,
+			opacity:     0,
 			depthWrite:  false,
 		}));
-		sprite.scale.set(52, 30, 1);
-		sprite.position.copy(pos);
-		sprite.position.multiplyScalar(1.08);
-		sphereGroup.add(sprite);
 
 		const core = new THREE.Sprite(new THREE.SpriteMaterial({
-			map:         streakTex,
+			map:         dotTex,
 			color:       ACCENT,
 			transparent: true,
 			opacity:     0.9,
-			blending:    THREE.AdditiveBlending,
+			blending:    THREE.NormalBlending,
 			depthTest:   false,
 			depthWrite:  false,
 		}));

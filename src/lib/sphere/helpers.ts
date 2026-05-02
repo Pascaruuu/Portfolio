@@ -65,11 +65,11 @@ export function buildParticles(count: number, r: number): { geometry: THREE.Buff
 		pos[i * 3 + 1] = rr * y + jitterY;
 		pos[i * 3 + 2] = rr * swirl * rad * Math.sin(t) + jitterZ;
 
-		// Warm white -> light orange gradient per particle
-		const mix        = Math.random();
-		colors[i * 3]     = 0.88 + mix * 0.12;  // R - high
-		colors[i * 3 + 1] = 0.65 + mix * 0.18;  // G - medium-warm
-		colors[i * 3 + 2] = 0.42 + mix * 0.22;  // B - lower (warm)
+		// #E44040 red with slight brightness variation
+		const mix = Math.random();
+		colors[i * 3]     = 0.894 + mix * 0.06;  // R ~0.894 (#E4)
+		colors[i * 3 + 1] = 0.188 + mix * 0.04;  // G ~0.251 (#40)
+		colors[i * 3 + 2] = 0.188 + mix * 0.04;  // B ~0.251 (#40)
 	}
 
 	for (let i = 0; i < hotspotParticleCount; i++) {
@@ -94,10 +94,11 @@ export function buildParticles(count: number, r: number): { geometry: THREE.Buff
 		pos[targetIndex * 3 + 1] = dir.y * clusterRadius;
 		pos[targetIndex * 3 + 2] = dir.z * clusterRadius;
 
+		// Brighter red for hotspot clusters
 		const mix = 0.72 + Math.random() * 0.28;
-		colors[targetIndex * 3] = 0.97 + mix * 0.03;
-		colors[targetIndex * 3 + 1] = 0.82 + mix * 0.12;
-		colors[targetIndex * 3 + 2] = 0.62 + mix * 0.14;
+		colors[targetIndex * 3]     = 0.894 + mix * 0.06;
+		colors[targetIndex * 3 + 1] = 0.188 + mix * 0.03;
+		colors[targetIndex * 3 + 2] = 0.188 + mix * 0.03;
 	}
 
 	const terrainValues = new Float32Array(count);

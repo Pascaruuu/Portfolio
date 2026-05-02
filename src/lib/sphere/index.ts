@@ -46,6 +46,7 @@ export function initSphere(
 		0.1,
 		4000
 	);
+	camera.layers.enable(1);
 	camera.position.set(0, 0, 470);
 	camera.lookAt(0, 0, 0);
 	const { composer, dispose: disposeComposer, setSphereScreenPos, setWorldState } = createAsciiRenderer(renderer, scene, camera);
@@ -153,16 +154,7 @@ export function initSphere(
 		keyLight.position.z = 290 + Math.cos(pulse * 0.26) * 90;
 		fillLight.position.x = -320 + Math.sin(pulse * 0.3) * 80;
 		particleSystem.particleMaterial.size = 3.63 + Math.sin(pulse * 1.15) * 0.12;
-
-		const now = state.clock.getElapsedTime();
-		updateParticles({
-			pulse,
-			flowVelX: state.flowVelX,
-			flowVelY: state.flowVelY,
-			waveStates: state.waveStates,
-			now,
-			...particleSystem,
-		});
+		particleSystem.particleMaterial.uniforms.uTime.value = pulse;
 
 		if (state.focusedSectionId) {
 			const entry = hotspotEntries.find(h => h.id === state.focusedSectionId);
@@ -251,7 +243,13 @@ export function initSphere(
 		onFrame(states);
 		asciiFrame++;
 		if (asciiFrame % 3 === 0) {
+			camera.layers.set(0);
 			composer.render();
+			camera.layers.set(0);
+			camera.layers.enable(1);
+			renderer.autoClear = false;
+			renderer.render(scene, camera);
+			renderer.autoClear = true;
 		}
 	}
 
