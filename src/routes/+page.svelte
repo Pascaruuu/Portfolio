@@ -31,6 +31,14 @@
 		focusSection: (id: SectionId | null) => void;
 	} | null>(null);
 
+	const navItems: { id: SectionId; label: string }[] = [
+		{ id: 'about', label: 'ABOUT' },
+		{ id: 'skills', label: 'SKILLS' },
+		{ id: 'projects', label: 'PROJECTS' },
+		{ id: 'experience', label: 'EXPERIENCE' },
+		{ id: 'contact', label: 'CONTACT' },
+	];
+
 	// ── Derived ────────────────────────────────────────────
 	const roleText = $derived(
 		lang === 'en' ? 'Full-Stack Dev & Designer' : 'フルスタック開発者 & デザイナー'
@@ -121,6 +129,20 @@
 
 <svelte:window onkeydown={(e) => { if (e.key === 'Escape' && panelOpen) closePanel(); }} />
 
+<!-- ── Section nav ──────────────────────────────────── -->
+<nav class="section-nav" aria-label="Portfolio sections">
+	{#each navItems as item}
+		<button
+			class="section-nav-btn"
+			class:active={currentSection === item.id}
+			aria-current={currentSection === item.id ? 'page' : undefined}
+			onclick={() => openPanel(item.id)}
+		>
+			{item.label}
+		</button>
+	{/each}
+</nav>
+
 <!-- ── WebGL canvas ──────────────────────────────────── -->
 <canvas
 	bind:this={canvasEl}
@@ -180,7 +202,7 @@
 	{@const activeHs = hotspotStates.find(h => h.id === currentSection)}
 	{@const x1 = activeHs?.x ?? vw / 2}
 	{@const y1 = activeHs?.y ?? vh / 2}
-	{@const popupW = Math.min(400, vw - 96)}
+	{@const popupW = Math.min(500, vw - 96)}
 	{@const x2 = vw - 48 - popupW}
 	{@const y2 = vh / 2}
 	{@const tang = Math.abs(x2 - x1) * 0.42 + 50}
@@ -320,3 +342,71 @@
 		</div>
 	</div>
 {/if}
+
+<style>
+	.section-nav {
+		position: fixed;
+		top: 22px;
+		left: 50%;
+		z-index: 40;
+		display: flex;
+		align-items: center;
+		gap: 2px;
+		max-width: calc(100vw - 32px);
+		padding: 5px;
+		overflow-x: auto;
+		background: color-mix(in srgb, var(--bg) 68%, transparent);
+		border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
+		border-radius: 999px;
+		backdrop-filter: blur(16px);
+		-webkit-backdrop-filter: blur(16px);
+		transform: translateX(-50%);
+	}
+
+	.section-nav-btn {
+		flex: 0 0 auto;
+		border: 0;
+		border-radius: 999px;
+		background: transparent;
+		color: var(--muted);
+		cursor: pointer;
+		font: inherit;
+		font-size: 0.7rem;
+		font-weight: 500;
+		letter-spacing: 0.12em;
+		line-height: 1;
+		padding: 11px 14px;
+		transition:
+			background 0.2s,
+			color 0.2s;
+	}
+
+	.section-nav-btn:hover,
+	.section-nav-btn.active {
+		background: color-mix(in srgb, var(--accent) 14%, transparent);
+		color: var(--text);
+	}
+
+	.section-nav-btn:focus-visible {
+		outline: 1px solid var(--accent);
+		outline-offset: 2px;
+	}
+
+	@media (max-width: 640px) {
+		.section-nav {
+			top: 14px;
+			width: calc(100vw - 24px);
+			justify-content: flex-start;
+			scrollbar-width: none;
+		}
+
+		.section-nav::-webkit-scrollbar {
+			display: none;
+		}
+
+		.section-nav-btn {
+			font-size: 0.62rem;
+			padding: 10px 11px;
+		}
+	}
+</style>

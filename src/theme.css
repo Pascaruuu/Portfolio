@@ -13,6 +13,7 @@
 :root {
 	/* ── White / near-white card bg ────────────────────────────────────────── */
 	--white: #ffffff; /* card / section / input background */
+	--accent: #E44040;
 
 	/* ── Gray (near-neutral, barely warm) ───────────────────────────────────── */
 	--gray-50: #f5f5f3; /* subtle hover bg */
@@ -47,7 +48,7 @@
 	--blue-200: #fac09a;
 	--blue-300: #f49462;
 	--blue-400: #e87848;
-	--blue-500: #d97757; /* Claude primary coral-orange */
+	--blue-500: #E44040; /* Claude primary coral-orange */
 	--blue-600: #c0613f;
 	--blue-700: #a64d2d;
 	--blue-800: #8a3c20;
@@ -125,6 +126,10 @@
 [data-theme='dark'] {
 	/* ── White / card bg ────────────────────────────────────────────────────── */
 	--white: #252523; /* card / section / input background */
+	--bg: #0a0a0b;
+	--text: #f0eeeb;
+	--accent: #E44040;
+	--muted: #6A7C8A;
 
 	/* ── Gray (warm dark) ───────────────────────────────────────────────────── */
 	--gray-50: #1e1e1c;
@@ -159,7 +164,7 @@
 	--blue-200: #6b3820;
 	--blue-300: #96562e;
 	--blue-400: #c07245;
-	--blue-500: #e0855e; /* slightly brighter for dark bg legibility */
+	--blue-500: #E44040; /* slightly brighter for dark bg legibility */
 	--blue-600: #d97757;
 	--blue-700: #c0613f;
 	--blue-800: #f4a882; /* light tint for selected/active text */

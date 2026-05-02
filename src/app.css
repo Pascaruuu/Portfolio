@@ -247,7 +247,6 @@ html {
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), 0 0 0 1px color-mix(in srgb, var(--blue-500) 8%, transparent);
   animation: popup-in 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
@@ -523,4 +522,11 @@ html {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+/* ─── Reduced motion ─────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .hs-dot::after { animation: none; }
+  .popup-card    { animation: none; }
+  .skill-fill    { transition: none; }
 }

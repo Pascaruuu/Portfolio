@@ -15,7 +15,7 @@ const about: Record<Lang, AboutContent> = {
 		heading: 'Who I Am',
 		paragraphs: [
 			"I'm TUY Pascal, an IT student with a passion for web development and digital creation. I build small applications and systems to understand how technology works in practice.",
-			"I'm drawn to the intersection of design and code — creating things that are both functional and visually considered. I also explore computer vision, cybersecurity, and automation.",
+			"I'm drawn to the intersection of design and code: creating things that are both functional and visually considered. I also explore computer vision, cybersecurity, and automation.",
 			'Currently improving my technical foundations through personal and academic projects, always focused on steady, practical progress.'
 		],
 		social: [

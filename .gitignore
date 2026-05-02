@@ -25,3 +25,7 @@ vite.config.ts.timestamp-*
 #Claude
 CLAUDE.md
 .claude
+
+DESIGN.md
+DESIGN.json
+PRODUCT.md
