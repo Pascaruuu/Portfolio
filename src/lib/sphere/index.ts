@@ -3,9 +3,6 @@ import type { HotspotState, SphereCallbacks, SphereControls } from '../types.js'
 import {
 	ACCENT,
 	AUTO_SPEED,
-	FLOW_DAMPING,
-	FLOW_MAX,
-	FLOW_RESPONSE,
 	HOTSPOT_DEFS,
 	HOVER_RADIUS_SQ,
 	INERTIA,
@@ -16,7 +13,7 @@ import { createAsciiRenderer } from './ascii.js';
 import { buildAsciiStars } from './helpers.js';
 import { buildHotspots } from './hotspots.js';
 import { clampQuatX, createInteraction } from './interaction.js';
-import { createParticleSystem, updateParticles } from './particles.js';
+import { createParticleSystem } from './particles.js';
 
 export { HOTSPOT_DEFS } from './constants.js';
 
@@ -40,7 +37,7 @@ export function initSphere(
 	let cameraProfile = getCameraProfile();
 
 	const css = getComputedStyle(document.documentElement);
-	const bgHex = css.getPropertyValue('--bg').trim() || '#1c1c1a';
+	const bgHex = css.getPropertyValue('--bg').trim() || css.getPropertyValue('--portfolio-bg').trim() || '#080b14';
 
 	const clearColor = new THREE.Color(bgHex);
 
@@ -73,6 +70,10 @@ export function initSphere(
 	const cameraRotMatrix = new THREE.Matrix4();
 	const sphereInvRotMatrix = new THREE.Matrix4();
 	const viewToSphereObject = new THREE.Matrix4();
+	const autoRotateAxisY = new THREE.Vector3(0, 1, 0);
+	const autoRotateQuat = new THREE.Quaternion();
+	const identityQuat = new THREE.Quaternion();
+	const focusDir = new THREE.Vector3();
 
 	const sphereGroup = new THREE.Group();
 	scene.add(sphereGroup);
@@ -99,6 +100,7 @@ export function initSphere(
 
 	// ── Hotspot nodes ────────────────────────────────────
 	const { hotspotEntries, clickMeshes } = buildHotspots(sphereGroup);
+	const hotspotById = new Map(hotspotEntries.map((entry) => [entry.id, entry]));
 	callbacks.onProgress?.(0.3);
 	callbacks.onProgress?.(0.6);
 
@@ -107,11 +109,10 @@ export function initSphere(
 	const interaction = createInteraction({
 		asciiEl: renderer.domElement,
 		camera,
-		scene,
 		sphereGroup,
 		hotspotEntries,
+		hotspotById,
 		clickMeshes,
-		waveSurface: particleSystem.waveSurface,
 		callbacks,
 		reducedMotion,
 	});
@@ -120,7 +121,6 @@ export function initSphere(
 		onPointerMove,
 		onPointerUp,
 		onPointerCancel,
-		triggerWave,
 		focusSection,
 		worldToScreen,
 		state,
@@ -139,7 +139,6 @@ export function initSphere(
 
 	function animate(): void {
 		if (asciiFrame === 0) {
-			console.log('[LOAD] onProgress(1.0) fired at', performance.now());
 			callbacks.onProgress?.(1.0);
 		}
 		animId = requestAnimationFrame(animate);
@@ -151,12 +150,10 @@ export function initSphere(
 			if (state.autoRotate) {
 				const targetSpeed = AUTO_SPEED;
 				state.currentSpeed += (targetSpeed - state.currentSpeed) * 0.05;
-				const qAutoY = new THREE.Quaternion().setFromAxisAngle(
-					new THREE.Vector3(0, 1, 0), state.currentSpeed
-				);
-				state.targetQuat.premultiply(qAutoY);
+				autoRotateQuat.setFromAxisAngle(autoRotateAxisY, state.currentSpeed);
+				state.targetQuat.premultiply(autoRotateQuat);
 			} else {
-				state.velQuat.slerp(new THREE.Quaternion(), 1 - INERTIA);
+				state.velQuat.slerp(identityQuat, 1 - INERTIA);
 				if (state.velQuat.w < 0.9999) {
 					state.targetQuat.premultiply(state.velQuat);
 					clampQuatX(state.targetQuat);
@@ -165,10 +162,6 @@ export function initSphere(
 				}
 			}
 		}
-
-		const velEuler = new THREE.Euler().setFromQuaternion(state.velQuat, 'YXZ');
-		state.flowVelX = THREE.MathUtils.clamp(state.flowVelX * FLOW_DAMPING + velEuler.y * FLOW_RESPONSE, -FLOW_MAX, FLOW_MAX);
-		state.flowVelY = THREE.MathUtils.clamp(state.flowVelY * FLOW_DAMPING + velEuler.x * FLOW_RESPONSE, -FLOW_MAX, FLOW_MAX);
 
 		sphereGroup.quaternion.slerp(state.targetQuat, ROTATION_LERP);
 
@@ -180,16 +173,16 @@ export function initSphere(
 		particleSystem.particleMaterial.uniforms.uTime.value = pulse;
 
 		if (state.focusedSectionId) {
-			const entry = hotspotEntries.find(h => h.id === state.focusedSectionId);
+			const entry = hotspotById.get(state.focusedSectionId);
 			if (entry) {
 				entry.clickMesh.getWorldPosition(entry.worldPos);
-				const dir = entry.worldPos.clone().normalize();
+				focusDir.copy(entry.worldPos).normalize();
 				targetCameraPos.set(
-					dir.x * cameraProfile.focusX,
-					dir.y * cameraProfile.focusY,
-					cameraProfile.focusZ - Math.max(0, dir.z) * cameraProfile.focusPull
+					focusDir.x * cameraProfile.focusX,
+					focusDir.y * cameraProfile.focusY,
+					cameraProfile.focusZ - Math.max(0, focusDir.z) * cameraProfile.focusPull
 				);
-				targetLookAt.copy(dir.clone().multiplyScalar(58));
+				targetLookAt.copy(focusDir).multiplyScalar(58);
 			}
 		} else {
 			targetCameraPos.copy(baseCameraPos);
@@ -223,18 +216,6 @@ export function initSphere(
 		sphereInvRotMatrix.extractRotation(sphereGroup.matrixWorld).invert();
 		viewToSphereObject.multiplyMatrices(sphereInvRotMatrix, cameraRotMatrix);
 		setWorldState(viewToSphereObject, sphereCenterView);
-		if (asciiFrame === 0) {
-			// Sample terrain FBM at each hotspot surface point in object space
-			// surfacePoint in unit-sphere space = hotspot world pos normalized by SPHERE_R
-			// then inverse-rotated by sphereGroup
-			const invRot = new THREE.Matrix4().extractRotation(sphereGroup.matrixWorld).invert();
-			hotspotEntries.forEach(h => {
-				h.clickMesh.getWorldPosition(h.worldPos);
-				const unitPos = h.worldPos.clone().divideScalar(SPHERE_R);
-				const objPos = unitPos.clone().applyMatrix4(invRot);
-				console.log(`[terrain-debug] ${h.id}: objPos=(${objPos.x.toFixed(3)}, ${objPos.y.toFixed(3)}, ${objPos.z.toFixed(3)})`);
-			});
-		}
 
 		// Build per-frame hotspot states for the UI
 		const states: HotspotState[] = hotspotEntries.map((h, i) => {
@@ -246,7 +227,6 @@ export function initSphere(
 				? THREE.MathUtils.clamp((dot - 0.1) / 0.2, 0, 1)
 				: 0;
 
-			// Pulsing scale on sprite
 			const sc = worldToScreen(h.worldPos);
 			h.screenX = sc.x;
 			h.screenY = sc.y;
@@ -256,11 +236,6 @@ export function initSphere(
 			const targetHoverMix = !state.isDragging && opacity > 0.18 && pointerDistSq < HOVER_RADIUS_SQ ? 1 : 0;
 			h.hoverMix += (targetHoverMix - h.hoverMix) * 0.16;
 
-			const pulseScale = 1 + Math.sin(pulse * 1.8 + i * 1.3) * 0.1;
-			const hoverBoost = 1 + h.hoverMix * 0.38;
-			const s = 44 * pulseScale * hoverBoost;
-			h.sprite.scale.set(s, s, 1);
-			h.sprite.material.opacity = opacity * (0.72 + h.hoverMix * 0.28);
 			h.core.scale.setScalar(11 + h.hoverMix * 6 + Math.sin(pulse * 2.2 + i) * 0.8);
 			h.core.material.opacity = opacity * (0.75 + h.hoverMix * 0.45);
 
@@ -313,7 +288,6 @@ export function initSphere(
 				state.autoRotate = true;
 			}
 		},
-		triggerWave,
 		focusSection,
 	};
 }

@@ -1,4 +1,11 @@
 import { languageStrings } from './language-strings.js';
+import {
+	contactEmail,
+	preloadImages,
+	projects as projectMeta,
+	skillItems,
+	socialLinks
+} from './portfolio-data.js';
 import type {
 	Lang,
 	SectionId,
@@ -10,46 +17,7 @@ import type {
 	UiContent
 } from './types.js';
 
-const socialLinks = [
-	{ label: 'GitHub',   url: 'https://github.com/Pascaruuu' },
-	{ label: 'LinkedIn', url: 'https://www.linkedin.com/in/pascal-tuy-07bb3b200/' },
-	{ label: 'Linktree', url: 'https://linktr.ee/pascaruuu' }
-];
-
-const skillItems = [
-	{ name: 'Sveltekit',  pct: 90 },
-	{ name: 'Typescript', pct: 90 },
-	{ name: 'Figma',      pct: 85 },
-	{ name: 'Python',     pct: 75 },
-	{ name: 'JavaScript', pct: 80 },
-	{ name: 'PHP',        pct: 50 }
-];
-
-const projectMeta = [
-	{
-		img: '/images/train_batch1.jpg',
-		url: 'https://github.com/Pascaruuu/TrashDnC-YOLOv8'
-	},
-	{
-		img: '/images/jewelry_invoice.png',
-		url: 'https://github.com/Pascaruuu/Jewelry-Invoice'
-	},
-	{
-		img: '/images/aupp_ecampus.png',
-		url: 'https://github.com/Pascaruuu/AUPP-eCampus'
-	}
-];
-
-const contactLinks = socialLinks;
-const contactEmail = 'tuypascal012@gmail.com';
-
-// ─── Image preload list ───────────────────────────────
-export const preloadImages: string[] = [
-	'/images/pfp.jpg',
-	'/images/train_batch1.jpg',
-	'/images/jewelry_invoice.png',
-	'/images/aupp_ecampus.png',
-];
+export { preloadImages };
 
 // ─── Hotspot label lookup ─────────────────────────────
 export function getLabel(id: SectionId, lang: Lang): string {
@@ -83,6 +51,7 @@ export function getProjects(lang: Lang): ProjectsContent {
 		heading: projects.heading,
 		items: projects.items.map((project, index) => ({
 			...project,
+			title: projectMeta[index]?.title ?? '',
 			img: projectMeta[index]?.img ?? '',
 			url: projectMeta[index]?.url ?? ''
 		})),
@@ -100,7 +69,7 @@ export function getContact(lang: Lang): ContactContent {
 	return {
 		...contact,
 		email: contactEmail,
-		links: contactLinks
+		links: socialLinks
 	};
 }
 

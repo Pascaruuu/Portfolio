@@ -14,12 +14,6 @@ export function buildHotspots(sphereGroup: THREE.Group): {
 	const hotspotEntries: HotspotEntry[] = HOTSPOT_DEFS.map(def => {
 		const pos = latLonToVec3(def.lat, def.lon, SPHERE_R);
 
-		const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
-			transparent: true,
-			opacity:     0,
-			depthWrite:  false,
-		}));
-
 		const core = new THREE.Sprite(new THREE.SpriteMaterial({
 			map:         dotTex,
 			color:       ACCENT,
@@ -45,7 +39,6 @@ export function buildHotspots(sphereGroup: THREE.Group): {
 
 		return {
 			id: def.id,
-			sprite,
 			core,
 			clickMesh,
 			worldPos: new THREE.Vector3(),

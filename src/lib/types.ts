@@ -1,4 +1,5 @@
-export type SectionId = 'about' | 'skills' | 'projects' | 'experience' | 'contact';
+export const sectionIds = ['about', 'skills', 'projects', 'experience', 'contact'] as const;
+export type SectionId = typeof sectionIds[number];
 export type Lang = 'en' | 'ja';
 
 // ─── Content types ────────────────────────────────────
@@ -75,13 +76,6 @@ export interface UiContent {
 	hero: HeroContent;
 }
 
-export type SectionContent =
-	| { type: 'about'; data: AboutContent }
-	| { type: 'skills'; data: SkillsContent }
-	| { type: 'projects'; data: ProjectsContent }
-	| { type: 'experience'; data: ExperienceContent }
-	| { type: 'contact'; data: ContactContent };
-
 // ─── Sphere / hotspot types ───────────────────────────
 export interface HotspotDef {
 	id: SectionId;
@@ -98,7 +92,7 @@ export interface HotspotState {
 }
 
 export interface SphereCallbacks {
-	onHotspotClick: (id: SectionId, screenX: number, screenY: number) => void;
+	onHotspotClick: (id: SectionId) => void;
 	onFrame: (states: HotspotState[]) => void;
 	onDragStateChange: (dragging: boolean, hovering: boolean) => void;
 	onFirstDrag: () => void;
@@ -110,6 +104,5 @@ export interface SphereControls {
 	dispose:       () => void;
 	resize:        () => void;
 	setPanelOpen:  (open: boolean) => void;
-	triggerWave:   (id: SectionId) => void;
 	focusSection:  (id: SectionId | null) => void;
 }

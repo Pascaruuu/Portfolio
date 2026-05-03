@@ -11,6 +11,18 @@
  */
 
 :root {
+	/* Portfolio semantic tokens */
+	--portfolio-bg: #080b14;
+	--portfolio-bg-rgb: 8 11 20;
+	--portfolio-panel: #0d1322;
+	--portfolio-panel-soft: #111a2d;
+	--portfolio-surface: #172338;
+	--portfolio-text: #f5f2ec;
+	--portfolio-text-rgb: 245 242 236;
+	--portfolio-text-soft: #f0eeeb;
+	--portfolio-star-muted: #c8c4c0;
+	--portfolio-muted: #6A7C8A;
+
 	/* ── White / near-white card bg ────────────────────────────────────────── */
 	--white: #ffffff; /* card / section / input background */
 	--accent: #E44040;
@@ -124,6 +136,18 @@
  * Neutrals become dark warm tones; coral-orange accent stays consistent.
  * ───────────────────────────────────────────────────────────────────────────*/
 [data-theme='dark'] {
+	/* Portfolio semantic tokens */
+	--portfolio-bg: #080b14;
+	--portfolio-bg-rgb: 8 11 20;
+	--portfolio-panel: #0d1322;
+	--portfolio-panel-soft: #111a2d;
+	--portfolio-surface: #172338;
+	--portfolio-text: #f5f2ec;
+	--portfolio-text-rgb: 245 242 236;
+	--portfolio-text-soft: #f0eeeb;
+	--portfolio-star-muted: #c8c4c0;
+	--portfolio-muted: #6A7C8A;
+
 	/* ── White / card bg ────────────────────────────────────────────────────── */
 	--white: #252523; /* card / section / input background */
 	--bg: #0a0a0b;

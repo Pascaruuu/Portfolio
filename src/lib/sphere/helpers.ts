@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { ACCENT_HEX, HOTSPOT_DEFS, SPHERE_R } from './constants.js';
+import { HOTSPOT_DEFS, SPHERE_R } from './constants.js';
+import { accentParticleBase, portfolioColors } from '../theme.js';
 
 function hash3(p: [number,number,number]): number {
 	let x = ((p[0]*443.897)%1+1)%1, y = ((p[1]*441.423)%1+1)%1, z = ((p[2]*437.195)%1+1)%1;
@@ -65,11 +66,10 @@ export function buildParticles(count: number, r: number): { geometry: THREE.Buff
 		pos[i * 3 + 1] = rr * y + jitterY;
 		pos[i * 3 + 2] = rr * swirl * rad * Math.sin(t) + jitterZ;
 
-		// #E44040 red with slight brightness variation
 		const mix = Math.random();
-		colors[i * 3]     = 0.894 + mix * 0.06;  // R ~0.894 (#E4)
-		colors[i * 3 + 1] = 0.188 + mix * 0.04;  // G ~0.251 (#40)
-		colors[i * 3 + 2] = 0.188 + mix * 0.04;  // B ~0.251 (#40)
+		colors[i * 3]     = accentParticleBase.r + mix * 0.06;
+		colors[i * 3 + 1] = accentParticleBase.g + mix * 0.04;
+		colors[i * 3 + 2] = accentParticleBase.b + mix * 0.04;
 	}
 
 	for (let i = 0; i < hotspotParticleCount; i++) {
@@ -96,9 +96,9 @@ export function buildParticles(count: number, r: number): { geometry: THREE.Buff
 
 		// Brighter red for hotspot clusters
 		const mix = 0.72 + Math.random() * 0.28;
-		colors[targetIndex * 3]     = 0.894 + mix * 0.06;
-		colors[targetIndex * 3 + 1] = 0.188 + mix * 0.03;
-		colors[targetIndex * 3 + 2] = 0.188 + mix * 0.03;
+		colors[targetIndex * 3]     = accentParticleBase.r + mix * 0.06;
+		colors[targetIndex * 3 + 1] = accentParticleBase.g + mix * 0.03;
+		colors[targetIndex * 3 + 2] = accentParticleBase.b + mix * 0.03;
 	}
 
 	const terrainValues = new Float32Array(count);
@@ -118,8 +118,8 @@ export function buildParticles(count: number, r: number): { geometry: THREE.Buff
 export function buildAsciiStars(container: HTMLElement): HTMLElement {
 	const CHARS = ['·', '∗', '×'];
 	const COLORS = [
-		{ color: '#f0eeeb', weight: 70 },
-		{ color: '#c8c4c0', weight: 30 },
+		{ color: portfolioColors.textSoft, weight: 70 },
+		{ color: portfolioColors.starMuted, weight: 30 },
 	];
 	const COUNT = 180;
 
@@ -138,7 +138,7 @@ export function buildAsciiStars(container: HTMLElement): HTMLElement {
 			acc += weight;
 			if (r < acc) return color;
 		}
-		return COLORS[0]?.color ?? '#f0eeeb';
+		return COLORS[0]?.color ?? portfolioColors.textSoft;
 	}
 
 	for (let i = 0; i < COUNT; i++) {

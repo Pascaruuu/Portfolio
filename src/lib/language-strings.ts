@@ -1,7 +1,6 @@
 import type { Lang } from './types.js';
 
 interface ProjectStrings {
-	title: string;
 	desc: string;
 	tags: string[];
 }
@@ -80,17 +79,14 @@ export const languageStrings: Record<Lang, LanguageStrings> = {
 				heading: 'My Work',
 				items: [
 					{
-						title: 'TrashDnC-YOLOv8',
 						desc: 'Trash detection and classification system using YOLOv8 for automated waste management.',
 						tags: ['YOLOv8', 'Computer Vision', 'Python']
 					},
 					{
-						title: 'Jewelry-Invoice',
 						desc: 'Invoice management system for jewelry businesses with inventory tracking.',
 						tags: ['Invoice', 'Business', 'PHP']
 					},
 					{
-						title: 'AUPP-eCampus',
 						desc: 'Campus management platform with student portal and administrative features.',
 						tags: ['Education', 'Web App', 'PHP']
 					}
@@ -159,17 +155,14 @@ export const languageStrings: Record<Lang, LanguageStrings> = {
 				heading: '制作物',
 				items: [
 					{
-						title: 'TrashDnC-YOLOv8',
 						desc: 'YOLOv8を使用した自動廃棄物管理のためのゴミ検出・分類システム。',
 						tags: ['YOLOv8', 'コンピュータビジョン', 'Python']
 					},
 					{
-						title: 'Jewelry-Invoice',
 						desc: '在庫追跡機能を備えたジュエリービジネス向けの請求書管理システム。',
 						tags: ['請求書', 'ビジネス', 'PHP']
 					},
 					{
-						title: 'AUPP-eCampus',
 						desc: '学生ポータルと管理機能を備えたキャンパス管理プラットフォーム。',
 						tags: ['教育', 'Webアプリ', 'PHP']
 					}

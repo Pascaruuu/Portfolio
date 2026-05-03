@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
 	import LoadingScreen from '$lib/components/LoadingScreen.svelte';
+	import { navItems } from '$lib/portfolio-data.js';
+	import { scrambleText } from '$lib/text-scramble.js';
 	import { initSphere, HOTSPOT_DEFS } from '$lib/sphere.js';
 	import {
 		getLabel,
@@ -33,11 +35,8 @@
 	let canvasEl  = $state<HTMLCanvasElement | null>(null);
 	let sphereCtl = $state<{
 		setPanelOpen: (o: boolean) => void;
-		triggerWave: (id: SectionId) => void;
 		focusSection: (id: SectionId | null) => void;
 	} | null>(null);
-
-	const navItems: SectionId[] = ['about', 'skills', 'projects', 'experience', 'contact'];
 
 	// ── Derived ────────────────────────────────────────────
 	const ui = $derived(getUi(lang));
@@ -57,9 +56,8 @@
 		const initTimer = setTimeout(() => {
 			if (!canvasEl) return;
 
-			console.log('[LOAD] initSphere started at', performance.now());
 			controls = initSphere(canvasEl, {
-				onHotspotClick:    (id) => openPanel(id, false),
+				onHotspotClick:    (id) => openPanel(id),
 				onFrame:           (states) => { hotspotStates = states; },
 				onDragStateChange: (drag, hover) => { isDragging = drag; isHovering = hover; },
 				onFirstDrag:       () => { hintDismissed = true; },
@@ -116,14 +114,18 @@
 
 			for (const [selector, delay] of targets) {
 				const el = document.querySelector<HTMLElement>(selector);
-				if (el) scrambleText(el, delay, run);
+				if (el) {
+					scrambleText(el, {
+						delay,
+						shouldContinue: () => run === welcomeScrambleRun
+					});
+				}
 			}
 		});
 	});
 
 	// ── Panel ──────────────────────────────────────────────
-	function openPanel(id: SectionId, react = true): void {
-		if (react) sphereCtl?.triggerWave(id);
+	function openPanel(id: SectionId): void {
 		sphereCtl?.focusSection(id);
 		currentSection = id;
 		panelOpen      = true;
@@ -138,52 +140,6 @@
 	// ── Language ───────────────────────────────────────────
 	function toggleLang(): void {
 		lang = lang === 'en' ? 'ja' : 'en';
-	}
-
-	function scrambleText(el: HTMLElement, delay: number, run: number): void {
-		const chars = '!@#$%^&*?><[]{}|~';
-		const finalText = el.textContent ?? '';
-		const locked = Array.from({ length: finalText.length }, () => false);
-		let frameId = 0;
-		let startedAt = 0;
-
-		const scrambleFrame = (now: number): void => {
-			if (run !== welcomeScrambleRun) {
-				cancelAnimationFrame(frameId);
-				return;
-			}
-
-			if (startedAt === 0) startedAt = now;
-
-			const progress = Math.min(1, (now - startedAt) / 800);
-			const nextText = Array.from(finalText, (char, index) => {
-				if (progress >= 1) {
-					locked[index] = true;
-					return char;
-				}
-
-				const threshold = progress * (index / finalText.length * 0.5 + 0.5);
-				if (locked[index] || Math.random() < threshold) {
-					locked[index] = true;
-					return char;
-				}
-
-				return chars[Math.floor(Math.random() * chars.length)] ?? char;
-			}).join('');
-
-			el.textContent = nextText;
-
-			if (progress < 1) {
-				frameId = requestAnimationFrame(scrambleFrame);
-			} else {
-				cancelAnimationFrame(frameId);
-			}
-		};
-
-		setTimeout(() => {
-			if (run !== welcomeScrambleRun) return;
-			frameId = requestAnimationFrame(scrambleFrame);
-		}, delay);
 	}
 
 	// ── Contact email copy ─────────────────────────────────
@@ -208,13 +164,10 @@
 	progress={loadProgress}
 	visible={loadingVisible}
 	on:exit={() => {
-		console.log('[LOAD] on:exit fired, setting loadingDone=true', performance.now());
 		loadingDone = true;
 	}}
 	on:done={() => {
-		console.log('[LOAD] on:done fired, scheduling loadingVisible=false', performance.now());
 		setTimeout(() => {
-			console.log('[LOAD] loadingVisible = false at', performance.now());
 			loadingVisible = false;
 		}, 400);
 	}}
@@ -465,8 +418,8 @@
 		max-width: calc(100vw - 32px);
 		padding: 5px;
 		overflow-x: auto;
-		background: color-mix(in srgb, var(--bg) 68%, transparent);
-		border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
+		background: var(--nav-bg);
+		border: 1px solid var(--nav-border);
 		border-radius: 999px;
 		backdrop-filter: blur(16px);
 		-webkit-backdrop-filter: blur(16px);
@@ -494,7 +447,7 @@
 
 	.section-nav-btn:hover,
 	.section-nav-btn.active {
-		background: color-mix(in srgb, var(--accent) 14%, transparent);
+		background: var(--nav-active-bg);
 		color: var(--text);
 	}
 

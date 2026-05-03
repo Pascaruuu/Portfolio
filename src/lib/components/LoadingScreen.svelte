@@ -200,7 +200,7 @@
 		return [
 			`width:calc(${(4 * (1 - eased)).toFixed(3)}px + ${(300 * eased).toFixed(3)}vmax)`,
 			`height:calc(${(4 * (1 - eased)).toFixed(3)}px + ${(300 * eased).toFixed(3)}vmax)`,
-			`box-shadow:0 0 ${blur.toFixed(2)}px ${spread.toFixed(2)}px rgba(240,238,235,${haloOpacity.toFixed(3)})`,
+			`box-shadow:0 0 ${blur.toFixed(2)}px ${spread.toFixed(2)}px rgba(var(--portfolio-text-rgb),${haloOpacity.toFixed(3)})`,
 		].join(';');
 	}
 
@@ -343,7 +343,7 @@
 		inset: 0;
 		z-index: 9999;
 		overflow: hidden;
-		background: #080b14;
+		background: var(--portfolio-bg);
 		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
 		pointer-events: auto;
 		transition: opacity 0.6s ease;
@@ -361,7 +361,7 @@
 
 	.star-point {
 		position: absolute;
-		color: #f0eeeb;
+		color: var(--portfolio-text-soft);
 		font-size: 12px;
 		line-height: 1;
 		white-space: pre;
@@ -369,7 +369,7 @@
 		font-family: inherit;
 		font-weight: 400;
 		letter-spacing: 0;
-		text-shadow: 0 0 8px rgba(240, 238, 235, 0.14);
+		text-shadow: 0 0 8px rgba(var(--portfolio-text-rgb), 0.14);
 		transform: translate(-50%, -50%);
 		will-change: left, top, opacity;
 	}
@@ -394,17 +394,17 @@
 
 	.progress-track {
 		width: 100%;
-		background: rgba(240, 238, 235, 0.2);
+		background: rgba(var(--portfolio-text-rgb), 0.2);
 	}
 
 	.progress-fill {
-		background: #f0eeeb;
+		background: var(--portfolio-text-soft);
 	}
 
 	.progress-tip {
 		position: absolute;
 		top: 50%;
-		color: #E44040;
+		color: var(--accent);
 		font-size: 12px;
 		line-height: 1;
 		transform: translate(-50%, -50%);
@@ -417,7 +417,7 @@
 		width: 4px;
 		height: 4px;
 		border-radius: 50%;
-		background: #080b14;
+		background: var(--portfolio-bg);
 		pointer-events: none;
 		transform: translate(-50%, -50%);
 	}

@@ -7,10 +7,10 @@ import {
 	SENSITIVITY,
 	X_CLAMP,
 } from './constants.js';
-import type { HotspotEntry, WaveState } from './types.js';
+import type { HotspotEntry } from './types.js';
 import type { SectionId, SphereCallbacks } from '../types.js';
 
-export interface InteractionState {
+interface InteractionState {
 	isDragging: boolean;
 	isPanelOpen: boolean;
 	prevX: number;
@@ -22,28 +22,26 @@ export interface InteractionState {
 	autoRotate: boolean;
 	hintFired: boolean;
 	autoRotateTimer: ReturnType<typeof setTimeout> | null;
-	waveStates: WaveState[];
 	focusedSectionId: SectionId | null;
-	flowVelX: number;
-	flowVelY: number;
 	currentSpeed: number;
 	clock: THREE.Clock;
 }
 
+const clampEulerScratch = new THREE.Euler();
+
 export function clampQuatX(q: THREE.Quaternion): void {
-	const euler = new THREE.Euler().setFromQuaternion(q, 'YXZ');
-	euler.x = Math.max(-X_CLAMP, Math.min(X_CLAMP, euler.x));
-	q.setFromEuler(euler);
+	clampEulerScratch.setFromQuaternion(q, 'YXZ');
+	clampEulerScratch.x = Math.max(-X_CLAMP, Math.min(X_CLAMP, clampEulerScratch.x));
+	q.setFromEuler(clampEulerScratch);
 }
 
 export function createInteraction(config: {
 	asciiEl: HTMLElement;
 	camera: THREE.Camera;
-	scene: THREE.Scene;
 	sphereGroup: THREE.Group;
 	hotspotEntries: HotspotEntry[];
+	hotspotById: Map<SectionId, HotspotEntry>;
 	clickMeshes: THREE.Mesh[];
-	waveSurface: THREE.Mesh;
 	callbacks: SphereCallbacks;
 	reducedMotion: boolean;
 }): {
@@ -51,12 +49,6 @@ export function createInteraction(config: {
 	onPointerMove: (e: PointerEvent) => void;
 	onPointerUp: (e: PointerEvent) => void;
 	onPointerCancel: (e: PointerEvent) => void;
-	getState: () => InteractionState;
-	beginInteraction: (clientX: number, clientY: number, pointerId: number) => void;
-	finishInteraction: (clientX: number, clientY: number) => void;
-	scheduleAutoRotate: () => void;
-	triggerWave: (id: SectionId) => void;
-	triggerWaveFromNormal: (origin: THREE.Vector3) => void;
 	focusSection: (id: SectionId | null) => void;
 	worldToScreen: (pos: THREE.Vector3) => { x: number; y: number };
 	state: InteractionState;
@@ -66,14 +58,25 @@ export function createInteraction(config: {
 		camera,
 		sphereGroup,
 		hotspotEntries,
+		hotspotById,
 		clickMeshes,
-		waveSurface,
 		callbacks,
 		reducedMotion,
 	} = config;
 	const { onHotspotClick, onDragStateChange, onFirstDrag } = callbacks;
 	const mouse     = new THREE.Vector2();
 	const raycaster = new THREE.Raycaster();
+	const axisX = new THREE.Vector3(1, 0, 0);
+	const axisY = new THREE.Vector3(0, 1, 0);
+	const forward = new THREE.Vector3(0, 0, 1);
+	const clampEuler = new THREE.Euler();
+	const localDir = new THREE.Vector3();
+	const worldDir = new THREE.Vector3();
+	const correctionQuat = new THREE.Quaternion();
+	const dragQuatX = new THREE.Quaternion();
+	const dragQuatY = new THREE.Quaternion();
+	const dragVelQuat = new THREE.Quaternion();
+	const screenProjector = new THREE.Vector3();
 	let activePointerId: number | null = null;
 
 	const state: InteractionState = {
@@ -90,10 +93,7 @@ export function createInteraction(config: {
 		autoRotate: !reducedMotion,
 		hintFired: false,
 		autoRotateTimer: null,
-		waveStates: [],
 		focusedSectionId: null,
-		flowVelX: 0,
-		flowVelY: 0,
 		currentSpeed: AUTO_SPEED,
 		clock: new THREE.Clock(),
 	};
@@ -106,44 +106,31 @@ export function createInteraction(config: {
 		}, 2200);
 	}
 
-	function triggerWave(id: SectionId): void {
-		const entry = hotspotEntries.find(h => h.id === id);
-		if (!entry) return;
-		triggerWaveFromNormal(entry.clickMesh.position.clone().normalize());
-	}
-
-	function triggerWaveFromNormal(origin: THREE.Vector3): void {
-		state.waveStates.push({
-			origin: origin.normalize(),
-			startTime: state.clock.getElapsedTime(),
-		});
-		if (state.waveStates.length > 6) state.waveStates = state.waveStates.slice(-6);
+	function clampStateTargetQuat(): void {
+		clampEuler.setFromQuaternion(state.targetQuat, 'YXZ');
+		clampEuler.x = Math.max(-X_CLAMP, Math.min(X_CLAMP, clampEuler.x));
+		state.targetQuat.setFromEuler(clampEuler);
 	}
 
 	function focusSection(id: SectionId | null): void {
 		state.focusedSectionId = id;
 		if (!id) return;
-		const entry = hotspotEntries.find(h => h.id === id);
+		const entry = hotspotById.get(id);
 		if (!entry) return;
 
-		const localDir = entry.clickMesh.position.clone().normalize();
-		const worldDir = localDir.clone().applyQuaternion(state.targetQuat);
-
-		const forward        = new THREE.Vector3(0, 0, 1);
-		const correctionQuat = new THREE.Quaternion().setFromUnitVectors(worldDir, forward);
-
-		const targetQ = correctionQuat.multiply(state.targetQuat);
-		clampQuatX(targetQ);
-		state.targetQuat = targetQ;
+		localDir.copy(entry.clickMesh.position).normalize();
+		worldDir.copy(localDir).applyQuaternion(state.targetQuat);
+		correctionQuat.setFromUnitVectors(worldDir, forward);
+		state.targetQuat.premultiply(correctionQuat);
+		clampStateTargetQuat();
 		state.velQuat.identity();
 	}
 
 	function worldToScreen(pos: THREE.Vector3): { x: number; y: number } {
-		const v = pos.clone();
-		v.project(camera);
+		screenProjector.copy(pos).project(camera);
 		return {
-			x: (v.x * 0.5 + 0.5) * window.innerWidth,
-			y: (-v.y * 0.5 + 0.5) * window.innerHeight,
+			x: (screenProjector.x * 0.5 + 0.5) * window.innerWidth,
+			y: (-screenProjector.y * 0.5 + 0.5) * window.innerHeight,
 		};
 	}
 
@@ -181,18 +168,8 @@ export function createInteraction(config: {
 			const [hit] = hits;
 			if (hit) {
 				const id = (hit.object.userData as { hotspotId: SectionId }).hotspotId;
-				const entry = hotspotEntries.find(h => h.id === id)!;
-				triggerWave(id);
-				entry.clickMesh.getWorldPosition(entry.worldPos);
-				const sc = worldToScreen(entry.worldPos);
-				onHotspotClick(id, sc.x, sc.y);
+				onHotspotClick(id);
 			} else {
-				const sphereHits = raycaster.intersectObject(waveSurface);
-				const [sphereHit] = sphereHits;
-				if (sphereHit) {
-					const localPoint = sphereGroup.worldToLocal(sphereHit.point.clone()).normalize();
-					triggerWaveFromNormal(localPoint);
-				}
 				callbacks.onBackgroundClick?.();
 			}
 		}
@@ -212,18 +189,13 @@ export function createInteraction(config: {
 			const dx = e.clientX - state.prevX;
 			const dy = e.clientY - state.prevY;
 
-			const qY = new THREE.Quaternion().setFromAxisAngle(
-				new THREE.Vector3(0, 1, 0), dx * sensitivity
-			);
-			const qX = new THREE.Quaternion().setFromAxisAngle(
-				new THREE.Vector3(1, 0, 0), dy * sensitivity
-			);
-
-			const newVelQuat = qY.multiply(qX);
-			state.velQuat.slerp(newVelQuat, 0.55);
+			dragQuatY.setFromAxisAngle(axisY, dx * sensitivity);
+			dragQuatX.setFromAxisAngle(axisX, dy * sensitivity);
+			dragVelQuat.copy(dragQuatY).multiply(dragQuatX);
+			state.velQuat.slerp(dragVelQuat, 0.55);
 
 			state.targetQuat.premultiply(state.velQuat);
-			clampQuatX(state.targetQuat);
+			clampStateTargetQuat();
 
 			state.prevX = e.clientX;
 			state.prevY = e.clientY;
@@ -259,21 +231,11 @@ export function createInteraction(config: {
 		if (asciiEl.hasPointerCapture(e.pointerId)) asciiEl.releasePointerCapture(e.pointerId);
 	};
 
-	function getState(): InteractionState {
-		return state;
-	}
-
 	return {
 		onPointerDown,
 		onPointerMove,
 		onPointerUp,
 		onPointerCancel,
-		getState,
-		beginInteraction,
-		finishInteraction,
-		scheduleAutoRotate,
-		triggerWave,
-		triggerWaveFromNormal,
 		focusSection,
 		worldToScreen,
 		state,
