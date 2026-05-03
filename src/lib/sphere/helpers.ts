@@ -116,16 +116,20 @@ export function buildParticles(count: number, r: number): { geometry: THREE.Buff
 }
 
 export function buildAsciiStars(container: HTMLElement): HTMLElement {
-	const CHARS = ['*', '+', '·', '.', '×'];
+	const CHARS = ['·', '∗', '×'];
 	const COLORS = [
-		{ color: '#f0eeeb', weight: 60 },
-		{ color: '#6A7C8A', weight: 30 },
-		{ color: ACCENT_HEX, weight: 10 },
+		{ color: '#f0eeeb', weight: 70 },
+		{ color: '#c8c4c0', weight: 30 },
 	];
 	const COUNT = 180;
 
 	const div = document.createElement('div');
 	div.style.cssText = 'position:fixed;inset:0;z-index:10;pointer-events:none;overflow:hidden;';
+	div.style.maskImage = 'radial-gradient(circle var(--sphere-r) at var(--sphere-x) var(--sphere-y), transparent 100%, black 100%)';
+	div.style.webkitMaskImage = div.style.maskImage;
+	div.style.setProperty('--sphere-x', '50%');
+	div.style.setProperty('--sphere-y', '50%');
+	div.style.setProperty('--sphere-r', '0px');
 
 	function pickColor(): string {
 		const r = Math.random() * 100;
@@ -142,8 +146,8 @@ export function buildAsciiStars(container: HTMLElement): HTMLElement {
 		const twinkle = Math.random() < 0.2;
 		const duration = 4 + Math.random() * 4;
 		const delay = Math.random() * 6;
-		const baseOpacity = 0.08 + Math.random() * 0.18;
-		const fontSize = 8 + Math.floor(Math.random() * 8);
+		const baseOpacity = 0.45 + Math.random() * 0.35;
+		const fontSize = 6 + Math.floor(Math.random() * 5);
 
 		span.textContent = CHARS[Math.floor(Math.random() * CHARS.length)] ?? '*';
 		span.style.cssText = [
@@ -169,6 +173,6 @@ export function buildAsciiStars(container: HTMLElement): HTMLElement {
 		document.head.appendChild(style);
 	}
 
-	container.appendChild(div);
+	container.insertBefore(div, container.firstChild);
 	return div;
 }

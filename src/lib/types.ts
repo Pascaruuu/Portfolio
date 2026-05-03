@@ -1,5 +1,5 @@
 export type SectionId = 'about' | 'skills' | 'projects' | 'experience' | 'contact';
-export type Lang = 'en' | 'jp';
+export type Lang = 'en' | 'ja';
 
 // ─── Content types ────────────────────────────────────
 export interface SkillItem {
@@ -55,6 +55,26 @@ export interface ContactContent {
 	links: { label: string; url: string }[];
 }
 
+export interface HeroContent {
+	welcomeText: string;
+	name: string;
+	nameFurigana?: string;
+	roleText: string;
+	hint: string;
+	cvLabel: string;
+	cvHref: string;
+}
+
+export interface UiContent {
+	navAriaLabel: string;
+	closePanelLabel: string;
+	dragHint: string;
+	languageToggleLabel: string;
+	profilePhotoAlt: string;
+	openSectionLabel: (sectionLabel: string) => string;
+	hero: HeroContent;
+}
+
 export type SectionContent =
 	| { type: 'about'; data: AboutContent }
 	| { type: 'skills'; data: SkillsContent }
@@ -83,6 +103,7 @@ export interface SphereCallbacks {
 	onDragStateChange: (dragging: boolean, hovering: boolean) => void;
 	onFirstDrag: () => void;
 	onBackgroundClick?: () => void;
+	onProgress?: (n: number) => void;
 }
 
 export interface SphereControls {

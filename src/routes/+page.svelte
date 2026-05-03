@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
+	import LoadingScreen from '$lib/components/LoadingScreen.svelte';
 	import { initSphere, HOTSPOT_DEFS } from '$lib/sphere.js';
 	import {
 		getLabel,
@@ -8,12 +9,13 @@
 		getProjects,
 		getExperience,
 		getContact,
+		getUi,
 		preloadImages,
 	} from '$lib/content.js';
 	import type { SectionId, Lang, HotspotState } from '$lib/types.js';
 
 	// ── State ──────────────────────────────────────────────
-	let lang           = $state<Lang>('en');
+	let lang           = $state<Lang>('ja');
 	let currentSection = $state<SectionId | null>(null);
 	let panelOpen      = $state(false);
 	let hintDismissed  = $state(false);
@@ -23,6 +25,10 @@
 	let skillsAnimated = $state(false);
 	let vw             = $state(0);
 	let vh             = $state(0);
+	let loadProgress   = $state(0);
+	let loadingDone    = $state(false);
+	let loadingVisible = $state(true);
+	let welcomeScrambleRun = 0;
 
 	let canvasEl  = $state<HTMLCanvasElement | null>(null);
 	let sphereCtl = $state<{
@@ -31,20 +37,14 @@
 		focusSection: (id: SectionId | null) => void;
 	} | null>(null);
 
-	const navItems: { id: SectionId; label: string }[] = [
-		{ id: 'about', label: 'ABOUT' },
-		{ id: 'skills', label: 'SKILLS' },
-		{ id: 'projects', label: 'PROJECTS' },
-		{ id: 'experience', label: 'EXPERIENCE' },
-		{ id: 'contact', label: 'CONTACT' },
-	];
+	const navItems: SectionId[] = ['about', 'skills', 'projects', 'experience', 'contact'];
 
 	// ── Derived ────────────────────────────────────────────
-	const roleText = $derived(
-		lang === 'en' ? 'Full-Stack Dev & Designer' : 'フルスタック開発者 & デザイナー'
-	);
+	const ui = $derived(getUi(lang));
 
-	const welcomeText = $derived(lang === 'en' ? 'Welcome' : 'ようこそ');
+	$effect(() => {
+		document.documentElement.lang = lang;
+	});
 
 	// ── Sphere init ────────────────────────────────────────
 	onMount(() => {
@@ -53,24 +53,32 @@
 
 		if (!canvasEl) return;
 
-		const controls = initSphere(canvasEl, {
-			onHotspotClick:    (id) => openPanel(id, false),
-			onFrame:           (states) => { hotspotStates = states; },
-			onDragStateChange: (drag, hover) => { isDragging = drag; isHovering = hover; },
-			onFirstDrag:       () => { hintDismissed = true; },
-			onBackgroundClick: () => { if (panelOpen) closePanel(); },
-		});
-		sphereCtl = controls;
+		let controls: ReturnType<typeof initSphere> | undefined;
+		const initTimer = setTimeout(() => {
+			if (!canvasEl) return;
+
+			console.log('[LOAD] initSphere started at', performance.now());
+			controls = initSphere(canvasEl, {
+				onHotspotClick:    (id) => openPanel(id, false),
+				onFrame:           (states) => { hotspotStates = states; },
+				onDragStateChange: (drag, hover) => { isDragging = drag; isHovering = hover; },
+				onFirstDrag:       () => { hintDismissed = true; },
+				onBackgroundClick: () => { if (panelOpen) closePanel(); },
+				onProgress:        (n) => { loadProgress = n; },
+			});
+			sphereCtl = controls;
+		}, 2000);
 
 		const handleResize = (): void => {
-			controls.resize();
+			controls?.resize();
 			vw = window.innerWidth;
 			vh = window.innerHeight;
 		};
 		window.addEventListener('resize', handleResize);
 
 		return () => {
-			controls.dispose();
+			clearTimeout(initTimer);
+			controls?.dispose();
 			window.removeEventListener('resize', handleResize);
 		};
 	});
@@ -92,6 +100,27 @@
 		}
 	});
 
+	// ── Welcome decode ─────────────────────────────────────
+	$effect(() => {
+		if (!loadingDone) return;
+		const run = ++welcomeScrambleRun;
+
+		tick().then(() => {
+			if (run !== welcomeScrambleRun) return;
+
+			const targets: [string, number][] = [
+				['.welcome-greeting', 0],
+				['.welcome-name', 150],
+				['.welcome-role', 300],
+			];
+
+			for (const [selector, delay] of targets) {
+				const el = document.querySelector<HTMLElement>(selector);
+				if (el) scrambleText(el, delay, run);
+			}
+		});
+	});
+
 	// ── Panel ──────────────────────────────────────────────
 	function openPanel(id: SectionId, react = true): void {
 		if (react) sphereCtl?.triggerWave(id);
@@ -108,7 +137,53 @@
 
 	// ── Language ───────────────────────────────────────────
 	function toggleLang(): void {
-		lang = lang === 'en' ? 'jp' : 'en';
+		lang = lang === 'en' ? 'ja' : 'en';
+	}
+
+	function scrambleText(el: HTMLElement, delay: number, run: number): void {
+		const chars = '!@#$%^&*?><[]{}|~';
+		const finalText = el.textContent ?? '';
+		const locked = Array.from({ length: finalText.length }, () => false);
+		let frameId = 0;
+		let startedAt = 0;
+
+		const scrambleFrame = (now: number): void => {
+			if (run !== welcomeScrambleRun) {
+				cancelAnimationFrame(frameId);
+				return;
+			}
+
+			if (startedAt === 0) startedAt = now;
+
+			const progress = Math.min(1, (now - startedAt) / 800);
+			const nextText = Array.from(finalText, (char, index) => {
+				if (progress >= 1) {
+					locked[index] = true;
+					return char;
+				}
+
+				const threshold = progress * (index / finalText.length * 0.5 + 0.5);
+				if (locked[index] || Math.random() < threshold) {
+					locked[index] = true;
+					return char;
+				}
+
+				return chars[Math.floor(Math.random() * chars.length)] ?? char;
+			}).join('');
+
+			el.textContent = nextText;
+
+			if (progress < 1) {
+				frameId = requestAnimationFrame(scrambleFrame);
+			} else {
+				cancelAnimationFrame(frameId);
+			}
+		};
+
+		setTimeout(() => {
+			if (run !== welcomeScrambleRun) return;
+			frameId = requestAnimationFrame(scrambleFrame);
+		}, delay);
 	}
 
 	// ── Contact email copy ─────────────────────────────────
@@ -129,16 +204,33 @@
 
 <svelte:window onkeydown={(e) => { if (e.key === 'Escape' && panelOpen) closePanel(); }} />
 
+<LoadingScreen
+	progress={loadProgress}
+	visible={loadingVisible}
+	on:exit={() => {
+		console.log('[LOAD] on:exit fired, setting loadingDone=true', performance.now());
+		loadingDone = true;
+	}}
+	on:done={() => {
+		console.log('[LOAD] on:done fired, scheduling loadingVisible=false', performance.now());
+		setTimeout(() => {
+			console.log('[LOAD] loadingVisible = false at', performance.now());
+			loadingVisible = false;
+		}, 400);
+	}}
+/>
+
+<div class="main-content" class:loaded={loadingDone}>
 <!-- ── Section nav ──────────────────────────────────── -->
-<nav class="section-nav" aria-label="Portfolio sections">
+<nav class="section-nav" aria-label={ui.navAriaLabel}>
 	{#each navItems as item}
 		<button
 			class="section-nav-btn"
-			class:active={currentSection === item.id}
-			aria-current={currentSection === item.id ? 'page' : undefined}
-			onclick={() => openPanel(item.id)}
+			class:active={currentSection === item}
+			aria-current={currentSection === item ? 'page' : undefined}
+			onclick={() => openPanel(item)}
 		>
-			{item.label}
+			{lang === 'en' ? getLabel(item, lang).toUpperCase() : getLabel(item, lang)}
 		</button>
 	{/each}
 </nav>
@@ -152,20 +244,25 @@
 ></canvas>
 
 <!-- ── Welcome block (left) ─────────────────────────── -->
-<div class="welcome-block">
-	<p class="welcome-greeting">{welcomeText}</p>
-	<h1 class="welcome-name">TUY Pascal</h1>
-	<p class="welcome-role">{roleText}</p>
-	<p class="welcome-hint">
-		{lang === 'en' ? 'Drag & click to explore' : 'ドラッグして探索'}
-	</p>
-	<a class="ctrl-btn welcome-cv" href="/assets/20260422_バスカル_履歴書.pdf" download>Download CV</a>
-</div>
+{#key lang}
+	<div class="welcome-block">
+		<p class="welcome-greeting">{ui.hero.welcomeText}</p>
+		{#if lang === 'ja'}
+			<p class="welcome-name-furigana">{ui.hero.nameFurigana}</p>
+		{/if}
+		<h1 class="welcome-name">{ui.hero.name}</h1>
+		<p class="welcome-role">{ui.hero.roleText}</p>
+		<p class="welcome-hint">
+			{ui.hero.hint}
+		</p>
+		<a class="ctrl-btn welcome-cv" href={ui.hero.cvHref} download>{ui.hero.cvLabel}</a>
+	</div>
+{/key}
 
 <!-- ── Controls (top-right) ─────────────────────────── -->
 <div class="controls">
 	<button class="ctrl-btn" onclick={toggleLang}>
-		{lang === 'en' ? 'EN / JP' : 'JP / EN'}
+		{ui.languageToggleLabel}
 	</button>
 </div>
 
@@ -179,7 +276,7 @@
 		style:opacity={hs.opacity}
 		style:pointer-events={hs.opacity > 0.5 ? 'auto' : 'none'}
 		onclick={() => openPanel(hs.id)}
-		aria-label="Open {getLabel(hs.id, lang)} section"
+		aria-label={ui.openSectionLabel(getLabel(hs.id, lang))}
 	>
 		<div class="hs-dot" style:--delay="{idx * 0.48}s"></div>
 		<span class="hs-text">{getLabel(hs.id, lang)}</span>
@@ -194,11 +291,11 @@
 		<path d="M9 10c0-1.105.895-2 2-2h2c1.105 0 2 .895 2 2v4" />
 		<path d="M5 15v-2a7 7 0 0 1 14 0v2l1 4H4l1-4z" />
 	</svg>
-	<span>drag to explore</span>
+	<span>{ui.dragHint}</span>
 </div>
 
 <!-- ── Connector line (SVG overlay) ─────────────────── -->
-{#if panelOpen && vw > 0}
+{#if panelOpen && vw >= 760}
 	{@const activeHs = hotspotStates.find(h => h.id === currentSection)}
 	{@const x1 = activeHs?.x ?? vw / 2}
 	{@const y1 = activeHs?.y ?? vh / 2}
@@ -222,7 +319,7 @@
 {#if panelOpen}
 	<div class="popup-card" aria-modal="true" role="dialog">
 		<div class="popup-header">
-			<button class="panel-close" onclick={closePanel} aria-label="Close panel">
+			<button class="panel-close" onclick={closePanel} aria-label={ui.closePanelLabel}>
 				<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor"
 					fill="none" stroke-width="2" stroke-linecap="round">
 					<line x1="18" y1="6"  x2="6"  y2="18" />
@@ -236,9 +333,9 @@
 			<!-- ── About ─────────────────────────────────── -->
 			{#if currentSection === 'about'}
 				{@const c = getAbout(lang)}
-				<p class="panel-eyebrow">about</p>
+				<p class="panel-eyebrow">{c.label}</p>
 				<h2 class="panel-heading">{c.heading}</h2>
-				<img src="/images/pfp.jpg" alt="TUY Pascal" class="about-photo" />
+				<img src="/images/pfp.jpg" alt={ui.profilePhotoAlt} class="about-photo" />
 				<div class="about-body">
 					{#each c.paragraphs as para}
 						<p>{para}</p>
@@ -255,7 +352,7 @@
 			<!-- ── Skills ────────────────────────────────── -->
 			{:else if currentSection === 'skills'}
 				{@const c = getSkills(lang)}
-				<p class="panel-eyebrow">skills</p>
+				<p class="panel-eyebrow">{c.label}</p>
 				<h2 class="panel-heading">{c.heading}</h2>
 				{#each c.items as skill}
 					<div class="skill-row">
@@ -275,7 +372,7 @@
 			<!-- ── Projects ──────────────────────────────── -->
 			{:else if currentSection === 'projects'}
 				{@const c = getProjects(lang)}
-				<p class="panel-eyebrow">projects</p>
+				<p class="panel-eyebrow">{c.label}</p>
 				<h2 class="panel-heading">{c.heading}</h2>
 				{#each c.items as project}
 					<a
@@ -308,7 +405,7 @@
 			<!-- ── Experience ────────────────────────────── -->
 			{:else if currentSection === 'experience'}
 				{@const c = getExperience(lang)}
-				<p class="panel-eyebrow">experience</p>
+				<p class="panel-eyebrow">{c.label}</p>
 				<h2 class="panel-heading">{c.heading}</h2>
 				{#each c.items as item}
 					<div class="exp-item">
@@ -320,7 +417,7 @@
 			<!-- ── Contact ───────────────────────────────── -->
 			{:else if currentSection === 'contact'}
 				{@const c = getContact(lang)}
-				<p class="panel-eyebrow">contact</p>
+				<p class="panel-eyebrow">{c.label}</p>
 				<h2 class="panel-heading">{c.heading}</h2>
 				<button
 					class="email-copy"
@@ -342,8 +439,21 @@
 		</div>
 	</div>
 {/if}
+</div>
 
 <style>
+	.main-content {
+		opacity: 0;
+		pointer-events: none;
+		transition: opacity 0.4s ease;
+		min-height: 100dvh;
+	}
+
+	.main-content.loaded {
+		opacity: 1;
+		pointer-events: auto;
+	}
+
 	.section-nav {
 		position: fixed;
 		top: 22px;
@@ -365,6 +475,7 @@
 
 	.section-nav-btn {
 		flex: 0 0 auto;
+		min-height: 36px;
 		border: 0;
 		border-radius: 999px;
 		background: transparent;
@@ -392,11 +503,26 @@
 		outline-offset: 2px;
 	}
 
+	.welcome-name-furigana {
+		font-size: 0.95rem;
+		letter-spacing: 0.16em;
+		color: var(--muted);
+		margin: 0 0 4px 0;
+		font-weight: 400;
+		padding-left: 0.08em;
+	}
+
+	.welcome-name {
+		white-space: nowrap;
+	}
+
 	@media (max-width: 640px) {
 		.section-nav {
-			top: 14px;
+			top: auto;
+			bottom: max(12px, env(safe-area-inset-bottom));
 			width: calc(100vw - 24px);
 			justify-content: flex-start;
+			z-index: 45;
 			scrollbar-width: none;
 		}
 
@@ -406,7 +532,8 @@
 
 		.section-nav-btn {
 			font-size: 0.62rem;
-			padding: 10px 11px;
+			min-height: 44px;
+			padding: 0 13px;
 		}
 	}
 </style>

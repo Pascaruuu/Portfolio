@@ -25,6 +25,19 @@ export function initSphere(
 	callbacks: SphereCallbacks
 ): SphereControls {
 	const { onFrame } = callbacks;
+	const getCameraProfile = () => {
+		const mobile = window.innerWidth < 760;
+		const compact = mobile && window.innerHeight < 680;
+
+		return {
+			baseZ: compact ? 620 : mobile ? 575 : 470,
+			focusZ: compact ? 565 : mobile ? 520 : 392,
+			focusX: mobile ? 38 : 64,
+			focusY: mobile ? 34 : 56,
+			focusPull: mobile ? 12 : 26,
+		};
+	};
+	let cameraProfile = getCameraProfile();
 
 	const css = getComputedStyle(document.documentElement);
 	const bgHex = css.getPropertyValue('--bg').trim() || '#1c1c1a';
@@ -47,10 +60,10 @@ export function initSphere(
 		4000
 	);
 	camera.layers.enable(1);
-	camera.position.set(0, 0, 470);
+	camera.position.set(0, 0, cameraProfile.baseZ);
 	camera.lookAt(0, 0, 0);
 	const { composer, dispose: disposeComposer, setSphereScreenPos, setWorldState } = createAsciiRenderer(renderer, scene, camera);
-	const baseCameraPos = new THREE.Vector3(0, 0, 470);
+	const baseCameraPos = new THREE.Vector3(0, 0, cameraProfile.baseZ);
 	const targetCameraPos = baseCameraPos.clone();
 	const currentLookAt = new THREE.Vector3();
 	const targetLookAt = new THREE.Vector3();
@@ -86,6 +99,8 @@ export function initSphere(
 
 	// ── Hotspot nodes ────────────────────────────────────
 	const { hotspotEntries, clickMeshes } = buildHotspots(sphereGroup);
+	callbacks.onProgress?.(0.3);
+	callbacks.onProgress?.(0.6);
 
 	// ── Interaction ──────────────────────────────────────
 	const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -123,6 +138,10 @@ export function initSphere(
 	let asciiFrame = 0;
 
 	function animate(): void {
+		if (asciiFrame === 0) {
+			console.log('[LOAD] onProgress(1.0) fired at', performance.now());
+			callbacks.onProgress?.(1.0);
+		}
 		animId = requestAnimationFrame(animate);
 		const dt = state.clock.getDelta();
 		if (!reducedMotion) pulse += dt;
@@ -166,9 +185,9 @@ export function initSphere(
 				entry.clickMesh.getWorldPosition(entry.worldPos);
 				const dir = entry.worldPos.clone().normalize();
 				targetCameraPos.set(
-					dir.x * 64,
-					dir.y * 56,
-					392 - Math.max(0, dir.z) * 26
+					dir.x * cameraProfile.focusX,
+					dir.y * cameraProfile.focusY,
+					cameraProfile.focusZ - Math.max(0, dir.z) * cameraProfile.focusPull
 				);
 				targetLookAt.copy(dir.clone().multiplyScalar(58));
 			}
@@ -194,6 +213,9 @@ export function initSphere(
 			1 - screenCenterY / window.innerHeight,
 			projectedRadius / window.innerHeight
 		);
+		asciiStarsBg.style.setProperty('--sphere-x', `${screenCenterX}px`);
+		asciiStarsBg.style.setProperty('--sphere-y', `${screenCenterY}px`);
+		asciiStarsBg.style.setProperty('--sphere-r', `${projectedRadius * 1.05}px`);
 		camera.updateMatrixWorld();
 		sphereGroup.updateMatrixWorld();
 		sphereCenterView.set(0, 0, 0).applyMatrix4(camera.matrixWorldInverse).divideScalar(SPHERE_R);
@@ -274,6 +296,9 @@ export function initSphere(
 			renderer.dispose();
 		},
 		resize() {
+			cameraProfile = getCameraProfile();
+			baseCameraPos.set(0, 0, cameraProfile.baseZ);
+			if (!state.focusedSectionId) targetCameraPos.copy(baseCameraPos);
 			camera.aspect = window.innerWidth / window.innerHeight;
 			camera.updateProjectionMatrix();
 			renderer.setSize(window.innerWidth, window.innerHeight);

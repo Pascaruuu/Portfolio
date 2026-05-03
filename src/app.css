@@ -27,6 +27,7 @@
 html, body {
   width: 100%;
   height: 100%;
+  min-height: 100dvh;
   overflow: hidden;
   background: var(--bg);
   color: var(--text);
@@ -46,6 +47,7 @@ html {
   display: block;
   z-index: 0;
   cursor: grab;
+  touch-action: none;
 }
 .sphere-canvas.dragging { cursor: grabbing; }
 .sphere-canvas.hovering { cursor: pointer; }
@@ -124,6 +126,7 @@ html {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   padding: 15px 30px;
+  min-height: 48px;
   border-radius: 40px;
   cursor: pointer;
   text-decoration: none;
@@ -147,7 +150,9 @@ html {
   transition: opacity 0.3s ease;
   background: transparent;
   border: none;
-  padding: 0;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 17px;
   overflow: visible;
 }
 
@@ -159,6 +164,7 @@ html {
   box-shadow: 0 0 6px var(--accent), 0 0 18px var(--accent-glow);
   display: block;
   position: relative;
+  margin: 0 auto;
   transition: box-shadow 0.2s;
 }
 
@@ -180,7 +186,7 @@ html {
 .hs-text {
   position: absolute;
   left: 50%;
-  top: 16px;
+  top: 32px;
   transform: translateX(-50%);
   font-size: 0.66rem;
   font-weight: 500;
@@ -275,8 +281,8 @@ html {
   background: transparent;
   border: 1px solid var(--border);
   color: var(--muted);
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   cursor: pointer;
   display: flex;
@@ -529,4 +535,194 @@ html {
   .hs-dot::after { animation: none; }
   .popup-card    { animation: none; }
   .skill-fill    { transition: none; }
+}
+
+@media (max-width: 760px) {
+  .welcome-block {
+    top: max(72px, env(safe-area-inset-top));
+    left: 20px;
+    right: 20px;
+    transform: none;
+    max-width: none;
+  }
+
+  .welcome-greeting {
+    font-size: clamp(0.82rem, 3.8vw, 1.05rem);
+    letter-spacing: 0.13em;
+    margin-bottom: 6px;
+  }
+
+  .welcome-name-furigana {
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+  }
+
+  .welcome-name {
+    font-size: clamp(1.72rem, 8.8vw, 2.35rem);
+    line-height: 1;
+    white-space: normal;
+    max-width: 12ch;
+    margin-bottom: 6px;
+  }
+
+  .welcome-role {
+    max-width: 22rem;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    margin-bottom: 10px;
+  }
+
+  .welcome-hint {
+    max-width: 19rem;
+    font-size: 0.62rem;
+    line-height: 1.5;
+    margin-bottom: 10px;
+    padding-top: 8px;
+  }
+
+  .welcome-cv {
+    padding: 0 15px;
+    min-height: 40px;
+    font-size: 0.64rem;
+  }
+
+  .controls {
+    top: max(14px, env(safe-area-inset-top));
+    right: 14px;
+    z-index: 50;
+  }
+
+  .controls .ctrl-btn {
+    min-height: 42px;
+    padding: 0 15px;
+    font-size: 0.74rem;
+  }
+
+  .hs-label {
+    z-index: 8;
+  }
+
+  .hs-text {
+    max-width: 108px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.58rem;
+    letter-spacing: 0.08em;
+    padding: 4px 8px;
+  }
+
+  .drag-hint {
+    bottom: 78px;
+    width: calc(100vw - 40px);
+    justify-content: center;
+    font-size: 0.62rem;
+  }
+
+  .connector-svg {
+    display: none;
+  }
+
+  .popup-card {
+    left: 18px;
+    right: 18px;
+    top: auto;
+    bottom: calc(70px + env(safe-area-inset-bottom));
+    width: auto;
+    max-height: min(46dvh, 360px);
+    border-radius: 14px;
+    transform: none;
+    overscroll-behavior: contain;
+  }
+
+  @keyframes popup-in {
+    from { opacity: 0; transform: translateY(18px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .popup-header {
+    padding: 8px 8px 0;
+  }
+
+  .panel-body {
+    padding: 4px 18px 22px;
+  }
+
+  .panel-eyebrow {
+    font-size: 0.6rem;
+    letter-spacing: 0.14em;
+  }
+
+  .panel-heading {
+    font-size: clamp(1.25rem, 5.8vw, 1.55rem);
+    margin-bottom: 16px;
+  }
+
+  .about-photo {
+    width: 56px;
+    height: 56px;
+    margin-bottom: 14px;
+  }
+
+  .about-body p,
+  .exp-desc {
+    font-size: 0.82rem;
+    line-height: 1.65;
+  }
+
+  .pill {
+    min-height: 38px;
+    align-items: center;
+  }
+
+  .project-img {
+    height: 104px;
+  }
+
+  .project-body {
+    padding: 11px 12px 13px;
+  }
+
+  .email-copy {
+    padding: 13px 14px;
+  }
+
+  .email-address {
+    overflow-wrap: anywhere;
+    font-size: 0.86rem;
+  }
+}
+
+@media (max-width: 390px) {
+  .welcome-block {
+    top: max(64px, env(safe-area-inset-top));
+  }
+
+  .welcome-hint {
+    display: none;
+  }
+
+  .popup-card {
+    left: 14px;
+    right: 14px;
+    max-height: min(44dvh, 330px);
+  }
+
+  .panel-body {
+    padding-inline: 16px;
+  }
+}
+
+@media (max-height: 640px) and (max-width: 760px) {
+  .welcome-block {
+    top: max(58px, env(safe-area-inset-top));
+  }
+
+  .welcome-role,
+  .welcome-hint {
+    display: none;
+  }
+
+  .popup-card {
+    max-height: min(42dvh, 300px);
+  }
 }
