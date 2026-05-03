@@ -242,7 +242,9 @@ export function initSphere(
 			return { id: h.id, x: sc.x, y: sc.y, opacity };
 		});
 
-		onFrame(states);
+		if (asciiFrame % 2 === 0) {
+			onFrame(states);
+		}
 		asciiFrame++;
 		if (asciiFrame % 3 === 0) {
 			camera.layers.set(0);
