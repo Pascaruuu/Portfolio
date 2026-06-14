@@ -3,9 +3,10 @@ import { ACCENT, HOTSPOT_DEFS, SPHERE_R } from './constants.js';
 import type { HotspotEntry } from './types.js';
 import { makeCircleTex } from './textures.js';
 import { latLonToVec3 } from './helpers.js';
+import type { TerrainMap } from './terrain-bake.js';
 import type { SectionId } from '../types.js';
 
-export function buildHotspots(sphereGroup: THREE.Group): {
+export function buildHotspots(sphereGroup: THREE.Group, terrainMap: TerrainMap): {
 	hotspotEntries: HotspotEntry[];
 	clickMeshes: THREE.Mesh[];
 } {
@@ -13,6 +14,17 @@ export function buildHotspots(sphereGroup: THREE.Group): {
 
 	const hotspotEntries: HotspotEntry[] = HOTSPOT_DEFS.map(def => {
 		const pos = latLonToVec3(def.lat, def.lon, SPHERE_R);
+
+		const nx = pos.x / SPHERE_R;
+		const ny = pos.y / SPHERE_R;
+		const nz = pos.z / SPHERE_R;
+		const terrain = terrainMap.sample(nx, ny, nz);
+		if (terrain < 0.13) {
+			console.warn(
+				`Hotspot "${def.id}" at lat=${def.lat} lon=${def.lon} ` +
+				`has terrain=${terrain.toFixed(4)} — below land threshold`
+			);
+		}
 
 		const core = new THREE.Sprite(new THREE.SpriteMaterial({
 			map:         dotTex,

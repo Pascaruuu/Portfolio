@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { SPHERE_R } from './constants.js';
 import { buildParticles } from './helpers.js';
+import type { TerrainMap } from './terrain-bake.js';
 
 type ParticleShaderMaterial = THREE.ShaderMaterial & {
 	size: number;
@@ -14,27 +15,33 @@ export interface ParticleSystem {
 	particleMaterial: ParticleShaderMaterial;
 }
 
-function buildLandBiasedParticles(targetCount: number): { geometry: THREE.BufferGeometry; terrainValues: Float32Array } {
+const PARTICLE_TERRAIN_MIN = 0.13;
+
+function buildLandBiasedParticles(targetCount: number, r: number, terrainMap: TerrainMap): { geometry: THREE.BufferGeometry; terrainValues: Float32Array } {
 	const candidateCount = Math.ceil(targetCount * 3.2);
-	const { geometry: candidateGeometry, terrainValues: candidateTerrainValues } = buildParticles(candidateCount, SPHERE_R);
+	const { geometry: candidateGeometry } = buildParticles(candidateCount, SPHERE_R);
 	const candidatePositions = candidateGeometry.getAttribute('position') as THREE.BufferAttribute;
 	const candidateColors = candidateGeometry.getAttribute('color') as THREE.BufferAttribute;
 	const candidatePositionArray = candidatePositions.array as ArrayLike<number>;
 	const candidateColorArray = candidateColors.array as ArrayLike<number>;
 	const landIndices: number[] = [];
-	const sparseWaterIndices: number[] = [];
+
+	const candidateTerrainValues = new Float32Array(candidateCount);
+	for (let i = 0; i < candidateCount; i++) {
+		const nx = (candidatePositionArray[i * 3] ?? 0) / r;
+		const ny = (candidatePositionArray[i * 3 + 1] ?? 0) / r;
+		const nz = (candidatePositionArray[i * 3 + 2] ?? 0) / r;
+		candidateTerrainValues[i] = terrainMap.sample(nx, ny, nz);
+	}
 
 	for (let i = 0; i < candidateCount; i++) {
 		const terrain = candidateTerrainValues[i] ?? -1;
-		if (terrain >= 0.05) {
+		if (terrain >= PARTICLE_TERRAIN_MIN) {
 			landIndices.push(i);
-		} else if (terrain >= -0.08 && Math.random() < 0.018) {
-			sparseWaterIndices.push(i);
 		}
 	}
 
-	const selectedIndices = landIndices.slice(0, Math.max(0, targetCount - sparseWaterIndices.length));
-	selectedIndices.push(...sparseWaterIndices.slice(0, Math.max(0, targetCount - selectedIndices.length)));
+	const selectedIndices = landIndices.slice(0, targetCount);
 	if (selectedIndices.length < targetCount) {
 		const selectedIndexSet = new Set(selectedIndices);
 		const fallbackIndices = Array.from({ length: candidateCount }, (_, i) => i)
@@ -57,7 +64,7 @@ function buildLandBiasedParticles(targetCount: number): { geometry: THREE.Buffer
 		colors[targetI3] = candidateColorArray[sourceI3] ?? 0;
 		colors[targetI3 + 1] = candidateColorArray[sourceI3 + 1] ?? 0;
 		colors[targetI3 + 2] = candidateColorArray[sourceI3 + 2] ?? 0;
-		selectedTerrainValues[i] = Math.max(0.05, candidateTerrainValues[sourceIndex] ?? 0.05);
+		selectedTerrainValues[i] = Math.max(PARTICLE_TERRAIN_MIN, candidateTerrainValues[sourceIndex] ?? PARTICLE_TERRAIN_MIN);
 	}
 
 	const geometry = new THREE.BufferGeometry();
@@ -67,8 +74,8 @@ function buildLandBiasedParticles(targetCount: number): { geometry: THREE.Buffer
 	return { geometry, terrainValues: selectedTerrainValues };
 }
 
-export function createParticleSystem(sphereGroup: THREE.Group, particleCount: number): ParticleSystem {
-	const { geometry: particleGeometry, terrainValues } = buildLandBiasedParticles(particleCount);
+export function createParticleSystem(sphereGroup: THREE.Group, particleCount: number, terrainMap: TerrainMap): ParticleSystem {
+	const { geometry: particleGeometry, terrainValues } = buildLandBiasedParticles(particleCount, SPHERE_R, terrainMap);
 	particleGeometry.setAttribute('terrain', new THREE.BufferAttribute(terrainValues, 1));
 	const flickerPhases = new Float32Array(particleCount);
 	for (let i = 0; i < particleCount; i++) flickerPhases[i] = Math.random() * 6.28;
@@ -132,7 +139,7 @@ export function createParticleSystem(sphereGroup: THREE.Group, particleCount: nu
 			varying float vFlicker;
 
 			void main() {
-				if (vTerrain < 0.05) discard;
+				if (vTerrain < ${PARTICLE_TERRAIN_MIN.toFixed(2)}) discard;
 				float charIndex = vFlicker;
 				vec2 atlasUV = vec2((charIndex + gl_PointCoord.x) / uCharCount, gl_PointCoord.y);
 				float alpha = texture2D(uCharacters, atlasUV).r;
@@ -142,6 +149,7 @@ export function createParticleSystem(sphereGroup: THREE.Group, particleCount: nu
 		`,
 		transparent: true,
 		blending: THREE.NormalBlending,
+		depthTest: true,
 		depthWrite: false,
 	}) as ParticleShaderMaterial;
 	Object.defineProperty(particleMaterial, 'size', {
@@ -168,7 +176,7 @@ export function createParticleSystem(sphereGroup: THREE.Group, particleCount: nu
 			depthTest: true,
 		})
 	);
-	depthOccluder.renderOrder = 2;
+	depthOccluder.renderOrder = -1;
 	sphereGroup.add(depthOccluder);
 
 	return {

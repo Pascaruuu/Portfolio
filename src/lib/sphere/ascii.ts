@@ -11,6 +11,7 @@ uniform vec2 sphereCenter;
 uniform float sphereRadius;
 uniform mat4 viewToSphereObject;
 uniform vec3 sphereCenterView;
+uniform vec2 uViewOffset; // NDC-space offset from camera.setViewOffset
 
 float hash3(vec3 p) {
   p = fract(p * vec3(443.897, 441.423, 437.195));
@@ -52,7 +53,7 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   float luminance = dot(scene.rgb, vec3(0.299, 0.587, 0.114));
 
   // Reconstruct a view-space ray to find the surface point.
-  vec2 ndc = uv * 2.0 - 1.0;
+  vec2 ndc = uv * 2.0 - 1.0 - uViewOffset;
   vec2 sc = sphereCenter * 2.0 - 1.0;
   float sr = sphereRadius * 2.0;
   vec2 localNDC = ndc - sc;
@@ -165,6 +166,7 @@ class ASCIIEffect extends Effect {
 				['sphereRadius', sphereRadius],
 				['viewToSphereObject', viewToSphereObject],
 				['sphereCenterView', sphereCenterView],
+				['uViewOffset', new THREE.Uniform(new THREE.Vector2(0, 0))],
 			]),
 		});
 
@@ -181,13 +183,17 @@ class ASCIIEffect extends Effect {
 		this.uniforms.get('viewToSphereObject')!.value.copy(viewToSphereObject);
 		this.uniforms.get('sphereCenterView')!.value.copy(sphereCenterView);
 	}
+
+	setViewOffset(ndcX: number, ndcY: number): void {
+		this.uniforms.get('uViewOffset')!.value.set(ndcX, ndcY);
+	}
 }
 
 export function createAsciiRenderer(
 	renderer: THREE.WebGLRenderer,
 	scene: THREE.Scene,
 	camera: THREE.Camera
-): { composer: EffectComposer; dispose(): void; setSphereScreenPos(cx: number, cy: number, r: number): void; setWorldState(viewToSphereObject: THREE.Matrix4, sphereCenterView: THREE.Vector3): void } {
+): { composer: EffectComposer; dispose(): void; setSphereScreenPos(cx: number, cy: number, r: number): void; setWorldState(viewToSphereObject: THREE.Matrix4, sphereCenterView: THREE.Vector3): void; setViewOffset(ndcX: number, ndcY: number): void } {
 	const composer = new EffectComposer(renderer);
 	composer.addPass(new RenderPass(scene, camera));
 	const effect = new ASCIIEffect(' .,·:;!|=+xo#%&@██', 6, ASCII_COLOR);
@@ -200,6 +206,9 @@ export function createAsciiRenderer(
 		},
 		setWorldState(viewToSphereObject: THREE.Matrix4, sphereCenterView: THREE.Vector3): void {
 			effect.setWorldState(viewToSphereObject, sphereCenterView);
+		},
+		setViewOffset(ndcX: number, ndcY: number): void {
+			effect.setViewOffset(ndcX, ndcY);
 		},
 		dispose() {
 			composer.dispose();

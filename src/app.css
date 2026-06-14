@@ -1,5 +1,8 @@
 @import './theme.css';
 
+/* `@media (max-width: 760px)` queries in this file correspond to
+   BP_DESKTOP in src/lib/viewport.svelte.ts — keep them in sync. */
+
 /* ─── Variables ──────────────────────────────────────── */
 :root {
   --bg:       var(--portfolio-bg);
@@ -65,6 +68,11 @@ html {
   z-index: 10;
   pointer-events: none;
   max-width: 400px;
+  transition: opacity 0.4s ease;
+}
+
+.welcome-block.panel-open {
+  opacity: 0;
 }
 
 .welcome-greeting {
@@ -248,12 +256,13 @@ html {
   right: 48px;
   top: 50%;
   transform: translateY(-50%);
-  width: min(500px, calc(100vw - 96px));
+  width: min(700px, calc(100vw - 96px));
   max-height: 68vh;
   background: var(--panel-bg);
   border: 1px solid var(--border-strong);
   border-radius: 14px;
   z-index: 30;
+  overflow-x: hidden;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
@@ -265,9 +274,84 @@ html {
   to   { opacity: 1; transform: translateY(-50%) scale(1); }
 }
 
+/* JS-positioned (desktop, panelInitialized): inline left/top/width/height
+   drive layout, so the CSS centering transform and 68vh cap must not apply,
+   and the entrance animation must not re-introduce translateY(-50%). */
+.popup-card.js-positioned {
+  transform: none;
+  max-height: none;
+  animation: popup-fade 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes popup-fade {
+  from { opacity: 0; scale: 0.97; }
+  to   { opacity: 1; scale: 1; }
+}
+
 .popup-card::-webkit-scrollbar       { width: 3px; }
 .popup-card::-webkit-scrollbar-track { background: transparent; }
 .popup-card::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.popup-card.panel-fullscreen {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-height: 100%;
+  border-radius: 0;
+  transform: none;
+  z-index: 50;
+}
+
+/* ─── Panel drag handle ──────────────────────────────── */
+.panel-drag-handle {
+  position: absolute;
+  left: -1px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px 0 0 4px;
+  color: var(--muted);
+  cursor: grab;
+  z-index: 2;
+  user-select: none;
+}
+
+.panel-drag-handle:active {
+  cursor: grabbing;
+}
+
+@media (max-width: 760px) {
+  .panel-drag-handle {
+    display: none;
+  }
+}
+
+/* ─── Panel resize handles ───────────────────────────── */
+.resize-handle {
+  position: absolute;
+  z-index: 10;
+}
+
+.resize-n  { top: -4px;    left: 8px;  right: 8px;  height: 8px; cursor: ns-resize; }
+.resize-s  { bottom: -4px; left: 8px;  right: 8px;  height: 8px; cursor: ns-resize; }
+.resize-w  { left: -4px;   top: 8px;   bottom: 8px; width: 8px;  cursor: ew-resize; }
+.resize-e  { right: -4px;  top: 8px;   bottom: 8px; width: 8px;  cursor: ew-resize; }
+.resize-nw { top: -4px;    left: -4px;  width: 12px; height: 12px; cursor: nw-resize; }
+.resize-ne { top: -4px;    right: -4px; width: 12px; height: 12px; cursor: ne-resize; }
+.resize-sw { bottom: -4px; left: -4px;  width: 12px; height: 12px; cursor: sw-resize; }
+.resize-se { bottom: -4px; right: -4px; width: 12px; height: 12px; cursor: se-resize; }
+
+@media (max-width: 760px) {
+  .resize-handle {
+    display: none;
+  }
+}
 
 /* ─── Popup Header ───────────────────────────────────── */
 .popup-header {
@@ -298,6 +382,28 @@ html {
 .panel-close:hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+.panel-fs-btn {
+  position: absolute;
+  top: 8px;
+  left: 16px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+@media (min-width: 761px) {
+  .panel-fs-btn {
+    display: none;
+  }
 }
 
 /* ─── Panel Content ──────────────────────────────────── */
@@ -537,7 +643,8 @@ html {
 /* ─── Reduced motion ─────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .hs-dot::after { animation: none; }
-  .popup-card    { animation: none; }
+  .popup-card,
+  .popup-card.js-positioned { animation: none; }
   .skill-fill    { transition: none; }
 }
 
@@ -716,6 +823,10 @@ html {
   }
 }
 
+/* Stricter short-viewport tier, deliberately below COMPACT_H = 680
+   (viewport.svelte.ts), which only governs camera zoom-out. This tier
+   hides .welcome-role/.welcome-hint and caps .popup-card height. Do not
+   unify with COMPACT_H. */
 @media (max-height: 640px) and (max-width: 760px) {
   .welcome-block {
     top: max(58px, env(safe-area-inset-top));

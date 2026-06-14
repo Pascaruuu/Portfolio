@@ -6,6 +6,8 @@ import {
 	HOTSPOT_DEFS,
 	HOVER_RADIUS_SQ,
 	INERTIA,
+	MOBILE_VERTICAL_SHIFT_RATIO,
+	PANEL_SHIFT_RATIO,
 	ROTATION_LERP,
 	SPHERE_R,
 } from './constants.js';
@@ -14,17 +16,19 @@ import { buildAsciiStars } from './helpers.js';
 import { buildHotspots } from './hotspots.js';
 import { clampQuatX, createInteraction } from './interaction.js';
 import { createParticleSystem } from './particles.js';
+import { bakeTerrainTexture } from './terrain-bake.js';
+import { viewport } from '../viewport.svelte.js';
 
 export { HOTSPOT_DEFS } from './constants.js';
 
-export function initSphere(
+export async function initSphere(
 	canvas:    HTMLCanvasElement,
 	callbacks: SphereCallbacks
-): SphereControls {
+): Promise<SphereControls> {
 	const { onFrame } = callbacks;
 	const getCameraProfile = () => {
-		const mobile = window.innerWidth < 760;
-		const compact = mobile && window.innerHeight < 680;
+		const mobile = !viewport.isDesktop;
+		const compact = mobile && viewport.isCompact;
 
 		return {
 			baseZ: compact ? 620 : mobile ? 575 : 470,
@@ -44,26 +48,31 @@ export function initSphere(
 	// ── Renderer ────────────────────────────────────────
 	const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
 	renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-	renderer.setSize(window.innerWidth, window.innerHeight);
+	renderer.setSize(viewport.vw, viewport.vh);
 	renderer.setClearColor(clearColor, 1);
+	const terrainMap = await bakeTerrainTexture(renderer);
 	const asciiStarsBg = buildAsciiStars(document.body);
 
 	const scene  = new THREE.Scene();
 	scene.fog = new THREE.FogExp2(clearColor, 0.00028);
 	const camera = new THREE.PerspectiveCamera(
 		55,
-		window.innerWidth / window.innerHeight,
+		viewport.vw / viewport.vh,
 		0.1,
 		4000
 	);
 	camera.layers.enable(1);
 	camera.position.set(0, 0, cameraProfile.baseZ);
 	camera.lookAt(0, 0, 0);
-	const { composer, dispose: disposeComposer, setSphereScreenPos, setWorldState } = createAsciiRenderer(renderer, scene, camera);
+	const { composer, dispose: disposeComposer, setSphereScreenPos, setWorldState, setViewOffset } = createAsciiRenderer(renderer, scene, camera);
 	const baseCameraPos = new THREE.Vector3(0, 0, cameraProfile.baseZ);
 	const targetCameraPos = baseCameraPos.clone();
 	const currentLookAt = new THREE.Vector3();
 	const targetLookAt = new THREE.Vector3();
+	let currentViewOffsetX = 0; // pixels, current lerped value
+	let targetViewOffsetX  = 0; // pixels, set by setPanelOpen
+	let currentViewOffsetY = 0; // pixels, current lerped value
+	let targetViewOffsetY  = 0; // pixels, set by setPanelOpen
 	const projectedSphereCenter = new THREE.Vector3();
 	const projectedSphereEdge = new THREE.Vector3();
 	const sphereCenterView = new THREE.Vector3();
@@ -95,11 +104,11 @@ export function initSphere(
 
 
 	// ── Fibonacci particle sphere ────────────────────────
-	const particleCount = window.innerWidth < 768 ? 14000 : 28000;
-	const particleSystem = createParticleSystem(sphereGroup, particleCount);
+	const particleCount = viewport.isDesktop ? 28000 : 14000;
+	const particleSystem = createParticleSystem(sphereGroup, particleCount, terrainMap);
 
 	// ── Hotspot nodes ────────────────────────────────────
-	const { hotspotEntries, clickMeshes } = buildHotspots(sphereGroup);
+	const { hotspotEntries, clickMeshes } = buildHotspots(sphereGroup, terrainMap);
 	const hotspotById = new Map(hotspotEntries.map((entry) => [entry.id, entry]));
 	callbacks.onProgress?.(0.3);
 	callbacks.onProgress?.(0.6);
@@ -144,6 +153,24 @@ export function initSphere(
 		animId = requestAnimationFrame(animate);
 		const dt = state.clock.getDelta();
 		if (!reducedMotion) pulse += dt;
+
+		// Lerp camera viewport offset (sphere shift when panel open)
+		const lerpSpeed = 1 - Math.pow(0.01, dt);
+		currentViewOffsetX += (targetViewOffsetX - currentViewOffsetX) * lerpSpeed;
+		currentViewOffsetY += (targetViewOffsetY - currentViewOffsetY) * lerpSpeed;
+		const W = renderer.domElement.width  / window.devicePixelRatio;
+		const H = renderer.domElement.height / window.devicePixelRatio;
+		if (Math.abs(currentViewOffsetX) > 0.5 || targetViewOffsetX !== 0 ||
+			Math.abs(currentViewOffsetY) > 0.5 || targetViewOffsetY !== 0) {
+			camera.setViewOffset(W, H, currentViewOffsetX, -currentViewOffsetY, W, H);
+		} else {
+			camera.clearViewOffset();
+		}
+
+		// Sync ASCII shader ray reconstruction with camera view offset
+		const ndcOffsetX = -(currentViewOffsetX / W) * 2.0;
+		const ndcOffsetY = -(currentViewOffsetY / H) * 2.0;
+		setViewOffset(ndcOffsetX, ndcOffsetY);
 
 		// Rotation with auto-rotate / inertia
 		if (!state.isDragging && !state.isPanelOpen) {
@@ -196,6 +223,9 @@ export function initSphere(
 
 		projectedSphereCenter.set(0, 0, 0).project(camera);
 		projectedSphereEdge.set(SPHERE_R, 0, 0).project(camera);
+		// Live window reads on purpose: this runs every frame for pixel-projection
+		// math, independent of the desktop/mobile decision. viewport.svelte.ts
+		// (BP_DESKTOP) remains the authority for breakpoint logic.
 		const screenCenterX = (projectedSphereCenter.x * 0.5 + 0.5) * window.innerWidth;
 		const screenCenterY = (-projectedSphereCenter.y * 0.5 + 0.5) * window.innerHeight;
 		const screenEdgeX = (projectedSphereEdge.x * 0.5 + 0.5) * window.innerWidth;
@@ -271,15 +301,28 @@ export function initSphere(
 			asciiStarsBg.parentElement?.removeChild(asciiStarsBg);
 			disposeComposer();
 			renderer.dispose();
+			terrainMap.dispose();
 		},
 		resize() {
 			cameraProfile = getCameraProfile();
 			baseCameraPos.set(0, 0, cameraProfile.baseZ);
 			if (!state.focusedSectionId) targetCameraPos.copy(baseCameraPos);
-			camera.aspect = window.innerWidth / window.innerHeight;
+			camera.aspect = viewport.vw / viewport.vh;
 			camera.updateProjectionMatrix();
-			renderer.setSize(window.innerWidth, window.innerHeight);
-			composer.setSize(window.innerWidth, window.innerHeight);
+			renderer.setSize(viewport.vw, viewport.vh);
+			composer.setSize(viewport.vw, viewport.vh);
+
+			// Re-apply view offset with updated dimensions
+			const isDesktop = viewport.isDesktop;
+			targetViewOffsetX = isDesktop && state.isPanelOpen
+				? viewport.vw * PANEL_SHIFT_RATIO
+				: 0;
+			targetViewOffsetY = !isDesktop && state.isPanelOpen
+				? -viewport.vh * MOBILE_VERTICAL_SHIFT_RATIO
+				: 0;
+			// Snap current to target on resize (no lerp across dimension change)
+			currentViewOffsetX = targetViewOffsetX;
+			currentViewOffsetY = targetViewOffsetY;
 		},
 		setPanelOpen(open: boolean) {
 			state.isPanelOpen = open;
@@ -288,6 +331,13 @@ export function initSphere(
 				if (state.autoRotateTimer) { clearTimeout(state.autoRotateTimer); state.autoRotateTimer = null; }
 			} else {
 				state.autoRotate = true;
+			}
+			if (viewport.isDesktop) {
+				targetViewOffsetX = open ? viewport.vw * PANEL_SHIFT_RATIO : 0;
+				targetViewOffsetY = 0;
+			} else {
+				targetViewOffsetX = 0;
+				targetViewOffsetY = open ? -viewport.vh * MOBILE_VERTICAL_SHIFT_RATIO : 0;
 			}
 		},
 		focusSection,

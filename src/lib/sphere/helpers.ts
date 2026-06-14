@@ -1,38 +1,6 @@
 import * as THREE from 'three';
-import { HOTSPOT_DEFS, SPHERE_R } from './constants.js';
+import { HOTSPOT_DEFS } from './constants.js';
 import { accentParticleBase, portfolioColors } from '../theme.js';
-
-function hash3(p: [number,number,number]): number {
-	let x = ((p[0]*443.897)%1+1)%1, y = ((p[1]*441.423)%1+1)%1, z = ((p[2]*437.195)%1+1)%1;
-	const d = x*(y+19.19)+y*(z+19.19)+z*(x+19.19);
-	x+=d; y+=d; z+=d;
-	return ((((x+y)*z)%1)+1)%1;
-}
-function noise3(p: [number,number,number]): number {
-	const i = p.map(Math.floor) as [number,number,number];
-	let f = p.map((v,j)=>v-(i[j] ?? 0)) as [number,number,number];
-	f = f.map(v=>v*v*(3-2*v)) as [number,number,number];
-	const h = (dx:number,dy:number,dz:number) => hash3([i[0]+dx,i[1]+dy,i[2]+dz]);
-	return (1-f[2])*(
-		(1-f[1])*((1-f[0])*h(0,0,0)+f[0]*h(1,0,0)) +
-		f[1]*    ((1-f[0])*h(0,1,0)+f[0]*h(1,1,0))
-	) + f[2]*(
-		(1-f[1])*((1-f[0])*h(0,0,1)+f[0]*h(1,0,1)) +
-		f[1]*    ((1-f[0])*h(0,1,1)+f[0]*h(1,1,1))
-	);
-}
-function fbm3(p: [number,number,number]): number {
-	let v=0, a=0.5, px=p[0], py=p[1], pz=p[2];
-	for(let i=0;i<4;i++){
-		v+=a*noise3([px,py,pz]);
-		px=px*2.1+1.7; py=py*2.1+9.2; pz=pz*2.1+3.4;
-		a*=0.5;
-	}
-	return v;
-}
-function terrainAt(x:number,y:number,z:number): number {
-	return fbm3([x*1.8+3.7, y*1.8+1.2, z*1.8+5.5]) - 0.5;
-}
 
 export function latLonToVec3(lat: number, lon: number, r: number): THREE.Vector3 {
 	const phi   = (90 - lat) * (Math.PI / 180);
@@ -44,7 +12,7 @@ export function latLonToVec3(lat: number, lon: number, r: number): THREE.Vector3
 	);
 }
 
-export function buildParticles(count: number, r: number): { geometry: THREE.BufferGeometry; terrainValues: Float32Array } {
+export function buildParticles(count: number, r: number): { geometry: THREE.BufferGeometry } {
 	const pos    = new Float32Array(count * 3);
 	const colors = new Float32Array(count * 3);
 	const phi    = Math.PI * (3 - Math.sqrt(5)); // golden angle
@@ -101,18 +69,10 @@ export function buildParticles(count: number, r: number): { geometry: THREE.Buff
 		colors[targetIndex * 3 + 2] = accentParticleBase.b + mix * 0.03;
 	}
 
-	const terrainValues = new Float32Array(count);
-	for (let i = 0; i < count; i++) {
-		const x = (pos[i*3] ?? 0) / SPHERE_R;
-		const y = (pos[i*3+1] ?? 0) / SPHERE_R;
-		const z = (pos[i*3+2] ?? 0) / SPHERE_R;
-		terrainValues[i] = terrainAt(x, y, z);
-	}
-
 	const geo = new THREE.BufferGeometry();
 	geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
 	geo.setAttribute('color',    new THREE.BufferAttribute(colors, 3));
-	return { geometry: geo, terrainValues };
+	return { geometry: geo };
 }
 
 export function buildAsciiStars(container: HTMLElement): HTMLElement {

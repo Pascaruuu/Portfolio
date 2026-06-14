@@ -4,6 +4,7 @@
 	import { navItems } from '$lib/portfolio-data.js';
 	import { scrambleText } from '$lib/text-scramble.js';
 	import { initSphere, HOTSPOT_DEFS } from '$lib/sphere.js';
+	import { viewport } from '$lib/viewport.svelte.js';
 	import {
 		getLabel,
 		getAbout,
@@ -20,17 +21,24 @@
 	let lang           = $state<Lang>('ja');
 	let currentSection = $state<SectionId | null>(null);
 	let panelOpen      = $state(false);
+	let panelFullscreen = $state(false);
 	let hintDismissed  = $state(false);
 	let isDragging     = $state(false);
 	let isHovering     = $state(false);
 	let hotspotStates  = $state<HotspotState[]>([]);
 	let skillsAnimated = $state(false);
-	let vw             = $state(0);
-	let vh             = $state(0);
 	let loadProgress   = $state(0);
 	let loadingDone    = $state(false);
 	let loadingVisible = $state(true);
 	let welcomeScrambleRun = 0;
+
+	// ── Panel rect (desktop drag/resize) ──────────────────
+	let panelX           = $state(0);
+	let panelY           = $state(0);
+	let panelW           = $state(0);
+	let panelH           = $state(0);
+	let panelInitialized = $state(false);
+	let panelEl = $state<HTMLElement | null>(null);
 
 	let canvasEl  = $state<HTMLCanvasElement | null>(null);
 	let sphereCtl = $state<{
@@ -47,16 +55,15 @@
 
 	// ── Sphere init ────────────────────────────────────────
 	onMount(() => {
-		vw = window.innerWidth;
-		vh = window.innerHeight;
+		viewport.init();
 
 		if (!canvasEl) return;
 
-		let controls: ReturnType<typeof initSphere> | undefined;
-		const initTimer = setTimeout(() => {
+		let controls: Awaited<ReturnType<typeof initSphere>> | undefined;
+		const initTimer = setTimeout(async () => {
 			if (!canvasEl) return;
 
-			controls = initSphere(canvasEl, {
+			controls = await initSphere(canvasEl, {
 				onHotspotClick:    (id) => openPanel(id),
 				onFrame:           (states) => { hotspotStates = states; },
 				onDragStateChange: (drag, hover) => { isDragging = drag; isHovering = hover; },
@@ -69,8 +76,13 @@
 
 		const handleResize = (): void => {
 			controls?.resize();
-			vw = window.innerWidth;
-			vh = window.innerHeight;
+
+			if (panelInitialized) {
+				panelX = Math.min(panelX, viewport.vw - panelW);
+				panelY = Math.min(panelY, viewport.vh - panelH);
+				panelX = Math.max(0, panelX);
+				panelY = Math.max(0, panelY);
+			}
 		};
 		window.addEventListener('resize', handleResize);
 
@@ -78,6 +90,7 @@
 			clearTimeout(initTimer);
 			controls?.dispose();
 			window.removeEventListener('resize', handleResize);
+			viewport.teardown();
 		};
 	});
 
@@ -135,6 +148,117 @@
 		sphereCtl?.focusSection(null);
 		panelOpen      = false;
 		currentSection = null;
+		panelFullscreen = false;
+	}
+
+	// ── Panel rect init ────────────────────────────────────
+	function initPanelRect(): void {
+		const popupW = Math.min(700, viewport.vw - 96);
+		panelW = popupW;
+		panelX = viewport.vw - 48 - popupW;
+		panelY = 0;
+		panelH = 0;
+		panelInitialized = true;
+		requestAnimationFrame(() => {
+			if (!panelEl) return;
+			const h = panelEl.getBoundingClientRect().height;
+			panelH = h;
+			panelY = Math.max(0, (viewport.vh - h) / 2);
+		});
+	}
+
+	$effect(() => {
+		if (panelOpen && !panelInitialized) initPanelRect();
+	});
+
+	// ── Desktop panel drag ─────────────────────────────────
+	let isPanelDragging = false;
+	let dragStartX = 0, dragStartY = 0;
+	let dragOriginX = 0, dragOriginY = 0;
+
+	function onDragStart(e: PointerEvent): void {
+		if (!viewport.isDesktop) return;
+		isPanelDragging = true;
+		dragStartX = e.clientX;
+		dragStartY = e.clientY;
+		dragOriginX = panelX;
+		dragOriginY = panelY;
+		window.addEventListener('pointermove', onDragMove);
+		window.addEventListener('pointerup', onDragEnd);
+		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+	}
+
+	function onDragMove(e: PointerEvent): void {
+		if (!isPanelDragging) return;
+		const dx = e.clientX - dragStartX;
+		const dy = e.clientY - dragStartY;
+		const liveH = panelEl?.getBoundingClientRect().height ?? panelH;
+		panelX = Math.max(0, Math.min(viewport.vw - panelW, dragOriginX + dx));
+		panelY = Math.max(0, Math.min(viewport.vh - liveH, dragOriginY + dy));
+	}
+
+	function onDragEnd(): void {
+		isPanelDragging = false;
+		window.removeEventListener('pointermove', onDragMove);
+		window.removeEventListener('pointerup', onDragEnd);
+	}
+
+	// ── Desktop panel resize ───────────────────────────────
+	const RESIZE_DIRS = ['n', 's', 'e', 'w', 'nw', 'ne', 'sw', 'se'] as const;
+	type ResizeDir = typeof RESIZE_DIRS[number];
+
+	let isResizing = false;
+	let resizeDir: ResizeDir | null = null;
+	let resizeStartX = 0, resizeStartY = 0;
+	let resizeOrigin = { x: 0, y: 0, w: 0, h: 0 };
+	const MIN_W = 320, MIN_H = 240;
+
+	function onResizeStart(e: PointerEvent, dir: ResizeDir): void {
+		if (!viewport.isDesktop) return;
+		e.stopPropagation();
+		isResizing = true;
+		resizeDir = dir;
+		resizeStartX = e.clientX;
+		resizeStartY = e.clientY;
+		resizeOrigin = { x: panelX, y: panelY, w: panelW, h: panelH };
+		window.addEventListener('pointermove', onResizeMove);
+		window.addEventListener('pointerup', onResizeEnd);
+		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+	}
+
+	function onResizeMove(e: PointerEvent): void {
+		if (!isResizing || !resizeDir) return;
+		const dx = e.clientX - resizeStartX;
+		const dy = e.clientY - resizeStartY;
+		let { x, y, w, h } = resizeOrigin;
+
+		if (resizeDir.includes('e')) w = Math.max(MIN_W, w + dx);
+		if (resizeDir.includes('s')) h = Math.max(MIN_H, h + dy);
+		if (resizeDir.includes('w')) {
+			const newW = Math.max(MIN_W, w - dx);
+			x = x + w - newW;
+			w = newW;
+		}
+		if (resizeDir.includes('n')) {
+			const newH = Math.max(MIN_H, h - dy);
+			y = y + h - newH;
+			h = newH;
+		}
+
+		x = Math.max(0, x);
+		y = Math.max(0, y);
+		if (x + w > viewport.vw) w = viewport.vw - x;
+		if (y + h > viewport.vh) h = viewport.vh - y;
+		panelH = h;
+
+		panelX = x; panelY = y; panelW = w; panelH = h;
+	}
+
+	function onResizeEnd(): void {
+		isResizing = false;
+		resizeDir = null;
+		window.removeEventListener('pointermove', onResizeMove);
+		window.removeEventListener('pointerup', onResizeEnd);
 	}
 
 	// ── Language ───────────────────────────────────────────
@@ -198,7 +322,7 @@
 
 <!-- ── Welcome block (left) ─────────────────────────── -->
 {#key lang}
-	<div class="welcome-block">
+	<div class="welcome-block" class:panel-open={panelOpen}>
 		<p class="welcome-greeting">{ui.hero.welcomeText}</p>
 		{#if lang === 'ja'}
 			<p class="welcome-name-furigana">{ui.hero.nameFurigana}</p>
@@ -248,13 +372,12 @@
 </div>
 
 <!-- ── Connector line (SVG overlay) ─────────────────── -->
-{#if panelOpen && vw >= 760}
+{#if panelOpen && viewport.isDesktop}
 	{@const activeHs = hotspotStates.find(h => h.id === currentSection)}
-	{@const x1 = activeHs?.x ?? vw / 2}
-	{@const y1 = activeHs?.y ?? vh / 2}
-	{@const popupW = Math.min(500, vw - 96)}
-	{@const x2 = vw - 48 - popupW}
-	{@const y2 = vh / 2}
+	{@const x1 = activeHs?.x ?? viewport.vw / 2}
+	{@const y1 = activeHs?.y ?? viewport.vh / 2}
+	{@const x2 = panelInitialized ? panelX : viewport.vw - 48 - Math.min(700, viewport.vw - 96)}
+	{@const y2 = panelInitialized ? panelY + panelH / 2 : viewport.vh / 2}
 	{@const tang = Math.abs(x2 - x1) * 0.42 + 50}
 	{@const pathD = `M ${x1} ${y1} C ${x1 + tang} ${y1} ${x2 - tang} ${y2} ${x2} ${y2}`}
 	{@const lineAlpha = activeHs ? activeHs.opacity : 0}
@@ -270,8 +393,49 @@
 
 <!-- ── Popup card ─────────────────────────────────────── -->
 {#if panelOpen}
-	<div class="popup-card" aria-modal="true" role="dialog">
+	<div
+		bind:this={panelEl}
+		class="popup-card"
+		class:panel-fullscreen={panelFullscreen}
+		class:js-positioned={panelInitialized && viewport.isDesktop}
+		style={panelInitialized && viewport.isDesktop
+			? `left:${panelX}px; top:${panelY}px; width:${panelW}px;${panelH ? ` height:${panelH}px;` : ''} right:auto; transform:none;`
+			: ''}
+		aria-modal="true"
+		role="dialog"
+	>
+		<div
+			class="panel-drag-handle"
+			onpointerdown={onDragStart}
+			aria-label="Drag panel"
+			role="button"
+			tabindex="-1"
+		>
+			<svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor" aria-hidden="true">
+				<circle cx="2" cy="2" r="1.5" />
+				<circle cx="8" cy="2" r="1.5" />
+				<circle cx="2" cy="8" r="1.5" />
+				<circle cx="8" cy="8" r="1.5" />
+				<circle cx="2" cy="14" r="1.5" />
+				<circle cx="8" cy="14" r="1.5" />
+			</svg>
+		</div>
+
+		{#each RESIZE_DIRS as dir}
+			<div class="resize-handle resize-{dir}" role="presentation" onpointerdown={(e) => onResizeStart(e, dir)}></div>
+		{/each}
+
 		<div class="popup-header">
+			<button class="panel-fs-btn" onclick={() => panelFullscreen = !panelFullscreen} aria-label="Toggle full screen">
+				<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor"
+					fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					{#if panelFullscreen}
+						<polyline points="6 9 12 15 18 9" />
+					{:else}
+						<polyline points="18 15 12 9 6 15" />
+					{/if}
+				</svg>
+			</button>
 			<button class="panel-close" onclick={closePanel} aria-label={ui.closePanelLabel}>
 				<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor"
 					fill="none" stroke-width="2" stroke-linecap="round">
