@@ -162,6 +162,21 @@ export async function initSphere(
 		const H = renderer.domElement.height / window.devicePixelRatio;
 		if (Math.abs(currentViewOffsetX) > 0.5 || targetViewOffsetX !== 0 ||
 			Math.abs(currentViewOffsetY) > 0.5 || targetViewOffsetY !== 0) {
+			// Sign flip: screen-space Y is down-positive, but GL/NDC-space Y is
+			// up-positive. currentViewOffsetY is set (below, and in resize() /
+			// setPanelOpen()) using the GL convention -- e.g. a negative value
+			// shifts the visible sphere up on mobile to clear the panel. But
+			// camera.setViewOffset()'s second offset argument is a screen-space
+			// pixel offset (down-positive), so it must be negated here to
+			// convert GL-convention to screen-convention. Drop this negation
+			// and the view window shifts the wrong way vertically -- e.g. the
+			// sphere would slide further under the panel instead of away from
+			// it.
+			//
+			// Two other negations encode this same screen-Y/GL-Y flip: the NDC
+			// offset derivation just below (ndcOffsetY), and the mobile
+			// vertical view-offset assignments (targetViewOffsetY) in resize()
+			// and setPanelOpen().
 			camera.setViewOffset(W, H, currentViewOffsetX, -currentViewOffsetY, W, H);
 		} else {
 			camera.clearViewOffset();
@@ -169,6 +184,7 @@ export async function initSphere(
 
 		// Sync ASCII shader ray reconstruction with camera view offset
 		const ndcOffsetX = -(currentViewOffsetX / W) * 2.0;
+		// screen-Y vs GL-Y flip -- see setViewOffset block above
 		const ndcOffsetY = -(currentViewOffsetY / H) * 2.0;
 		setViewOffset(ndcOffsetX, ndcOffsetY);
 
@@ -317,6 +333,7 @@ export async function initSphere(
 			targetViewOffsetX = isDesktop && state.isPanelOpen
 				? viewport.vw * PANEL_SHIFT_RATIO
 				: 0;
+			// screen-Y vs GL-Y flip -- see setViewOffset block in animate()
 			targetViewOffsetY = !isDesktop && state.isPanelOpen
 				? -viewport.vh * MOBILE_VERTICAL_SHIFT_RATIO
 				: 0;
@@ -337,6 +354,7 @@ export async function initSphere(
 				targetViewOffsetY = 0;
 			} else {
 				targetViewOffsetX = 0;
+				// screen-Y vs GL-Y flip -- see setViewOffset block in animate()
 				targetViewOffsetY = open ? -viewport.vh * MOBILE_VERTICAL_SHIFT_RATIO : 0;
 			}
 		},

@@ -22,6 +22,10 @@
   --nav-active-bg: color-mix(in srgb, var(--accent) 14%, transparent);
   --hotspot-glow-strong: color-mix(in srgb, var(--blue-400) 55%, transparent);
   --font:     'Space Grotesk', system-ui, sans-serif;
+
+  /* Panel geometry: mirrors PANEL_GUTTER / PANEL_MAX_W in src/lib/panelGeometry.ts — keep in sync */
+  --panel-gutter: 48px;
+  --panel-max-w: 700px;
 }
 
 /* ─── Reset & Base ───────────────────────────────────── */
@@ -253,10 +257,10 @@ html {
 /* ─── Popup card ─────────────────────────────────────── */
 .popup-card {
   position: fixed;
-  right: 48px;
+  right: var(--panel-gutter);
   top: 50%;
   transform: translateY(-50%);
-  width: min(700px, calc(100vw - 96px));
+  width: min(var(--panel-max-w), calc(100vw - var(--panel-gutter) * 2));
   max-height: 68vh;
   background: var(--panel-bg);
   border: 1px solid var(--border-strong);

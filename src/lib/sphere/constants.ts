@@ -21,8 +21,18 @@ export const HOVER_RADIUS_SQ = 52 * 52; // screen-space px^2
 export const ACCENT = portfolioColors.accentNumber;
 export const ASCII_COLOR = portfolioColors.ascii;
 
-/** Fraction of viewport width the sphere shifts left when a panel is open. */
-export const PANEL_SHIFT_RATIO = 0.22;
+/** Fraction of viewport width the sphere shifts left (desktop) when a panel is open. */
+export const SHIFT_RATIO = 0.22;
 
-/** Fraction of viewport height the sphere shifts up when a panel is open (mobile). */
-export const MOBILE_VERTICAL_SHIFT_RATIO = 0.22;
+/** Fraction of viewport width the sphere shifts left when a panel is open. */
+export const PANEL_SHIFT_RATIO = SHIFT_RATIO;
+
+/**
+ * Fraction of viewport height the sphere shifts up when a panel is open
+ * (mobile). Deliberately lower than SHIFT_RATIO/PANEL_SHIFT_RATIO: the
+ * mobile sphere's projected radius leaves much less vertical margin (its
+ * top edge sits close to the screen edge already), so the desktop ratio
+ * pushes it off-screen. Intentionally decoupled from SHIFT_RATIO -- do
+ * not re-alias the two.
+ */
+export const MOBILE_VERTICAL_SHIFT_RATIO = 0.08;

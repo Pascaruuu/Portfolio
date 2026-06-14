@@ -5,6 +5,8 @@
 	import { scrambleText } from '$lib/text-scramble.js';
 	import { initSphere, HOTSPOT_DEFS } from '$lib/sphere.js';
 	import { viewport } from '$lib/viewport.svelte.js';
+	import { PANEL_GUTTER, PANEL_MAX_W, PANEL_H_GUTTER } from '$lib/panelGeometry.js';
+	import { createDraggablePanel, RESIZE_DIRS } from '$lib/createDraggablePanel.svelte.js';
 	import {
 		getLabel,
 		getAbout,
@@ -33,12 +35,7 @@
 	let welcomeScrambleRun = 0;
 
 	// ── Panel rect (desktop drag/resize) ──────────────────
-	let panelX           = $state(0);
-	let panelY           = $state(0);
-	let panelW           = $state(0);
-	let panelH           = $state(0);
-	let panelInitialized = $state(false);
-	let panelEl = $state<HTMLElement | null>(null);
+	const panel = createDraggablePanel();
 
 	let canvasEl  = $state<HTMLCanvasElement | null>(null);
 	let sphereCtl = $state<{
@@ -76,13 +73,7 @@
 
 		const handleResize = (): void => {
 			controls?.resize();
-
-			if (panelInitialized) {
-				panelX = Math.min(panelX, viewport.vw - panelW);
-				panelY = Math.min(panelY, viewport.vh - panelH);
-				panelX = Math.max(0, panelX);
-				panelY = Math.max(0, panelY);
-			}
+			panel.onViewportResize();
 		};
 		window.addEventListener('resize', handleResize);
 
@@ -151,115 +142,9 @@
 		panelFullscreen = false;
 	}
 
-	// ── Panel rect init ────────────────────────────────────
-	function initPanelRect(): void {
-		const popupW = Math.min(700, viewport.vw - 96);
-		panelW = popupW;
-		panelX = viewport.vw - 48 - popupW;
-		panelY = 0;
-		panelH = 0;
-		panelInitialized = true;
-		requestAnimationFrame(() => {
-			if (!panelEl) return;
-			const h = panelEl.getBoundingClientRect().height;
-			panelH = h;
-			panelY = Math.max(0, (viewport.vh - h) / 2);
-		});
-	}
-
 	$effect(() => {
-		if (panelOpen && !panelInitialized) initPanelRect();
+		if (panelOpen && !panel.initialized) panel.init();
 	});
-
-	// ── Desktop panel drag ─────────────────────────────────
-	let isPanelDragging = false;
-	let dragStartX = 0, dragStartY = 0;
-	let dragOriginX = 0, dragOriginY = 0;
-
-	function onDragStart(e: PointerEvent): void {
-		if (!viewport.isDesktop) return;
-		isPanelDragging = true;
-		dragStartX = e.clientX;
-		dragStartY = e.clientY;
-		dragOriginX = panelX;
-		dragOriginY = panelY;
-		window.addEventListener('pointermove', onDragMove);
-		window.addEventListener('pointerup', onDragEnd);
-		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-	}
-
-	function onDragMove(e: PointerEvent): void {
-		if (!isPanelDragging) return;
-		const dx = e.clientX - dragStartX;
-		const dy = e.clientY - dragStartY;
-		const liveH = panelEl?.getBoundingClientRect().height ?? panelH;
-		panelX = Math.max(0, Math.min(viewport.vw - panelW, dragOriginX + dx));
-		panelY = Math.max(0, Math.min(viewport.vh - liveH, dragOriginY + dy));
-	}
-
-	function onDragEnd(): void {
-		isPanelDragging = false;
-		window.removeEventListener('pointermove', onDragMove);
-		window.removeEventListener('pointerup', onDragEnd);
-	}
-
-	// ── Desktop panel resize ───────────────────────────────
-	const RESIZE_DIRS = ['n', 's', 'e', 'w', 'nw', 'ne', 'sw', 'se'] as const;
-	type ResizeDir = typeof RESIZE_DIRS[number];
-
-	let isResizing = false;
-	let resizeDir: ResizeDir | null = null;
-	let resizeStartX = 0, resizeStartY = 0;
-	let resizeOrigin = { x: 0, y: 0, w: 0, h: 0 };
-	const MIN_W = 320, MIN_H = 240;
-
-	function onResizeStart(e: PointerEvent, dir: ResizeDir): void {
-		if (!viewport.isDesktop) return;
-		e.stopPropagation();
-		isResizing = true;
-		resizeDir = dir;
-		resizeStartX = e.clientX;
-		resizeStartY = e.clientY;
-		resizeOrigin = { x: panelX, y: panelY, w: panelW, h: panelH };
-		window.addEventListener('pointermove', onResizeMove);
-		window.addEventListener('pointerup', onResizeEnd);
-		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-	}
-
-	function onResizeMove(e: PointerEvent): void {
-		if (!isResizing || !resizeDir) return;
-		const dx = e.clientX - resizeStartX;
-		const dy = e.clientY - resizeStartY;
-		let { x, y, w, h } = resizeOrigin;
-
-		if (resizeDir.includes('e')) w = Math.max(MIN_W, w + dx);
-		if (resizeDir.includes('s')) h = Math.max(MIN_H, h + dy);
-		if (resizeDir.includes('w')) {
-			const newW = Math.max(MIN_W, w - dx);
-			x = x + w - newW;
-			w = newW;
-		}
-		if (resizeDir.includes('n')) {
-			const newH = Math.max(MIN_H, h - dy);
-			y = y + h - newH;
-			h = newH;
-		}
-
-		x = Math.max(0, x);
-		y = Math.max(0, y);
-		if (x + w > viewport.vw) w = viewport.vw - x;
-		if (y + h > viewport.vh) h = viewport.vh - y;
-		panelH = h;
-
-		panelX = x; panelY = y; panelW = w; panelH = h;
-	}
-
-	function onResizeEnd(): void {
-		isResizing = false;
-		resizeDir = null;
-		window.removeEventListener('pointermove', onResizeMove);
-		window.removeEventListener('pointerup', onResizeEnd);
-	}
 
 	// ── Language ───────────────────────────────────────────
 	function toggleLang(): void {
@@ -376,8 +261,8 @@
 	{@const activeHs = hotspotStates.find(h => h.id === currentSection)}
 	{@const x1 = activeHs?.x ?? viewport.vw / 2}
 	{@const y1 = activeHs?.y ?? viewport.vh / 2}
-	{@const x2 = panelInitialized ? panelX : viewport.vw - 48 - Math.min(700, viewport.vw - 96)}
-	{@const y2 = panelInitialized ? panelY + panelH / 2 : viewport.vh / 2}
+	{@const x2 = panel.initialized ? panel.x : viewport.vw - PANEL_GUTTER - Math.min(PANEL_MAX_W, viewport.vw - PANEL_H_GUTTER)}
+	{@const y2 = panel.initialized ? panel.y + panel.h / 2 : viewport.vh / 2}
 	{@const tang = Math.abs(x2 - x1) * 0.42 + 50}
 	{@const pathD = `M ${x1} ${y1} C ${x1 + tang} ${y1} ${x2 - tang} ${y2} ${x2} ${y2}`}
 	{@const lineAlpha = activeHs ? activeHs.opacity : 0}
@@ -394,19 +279,19 @@
 <!-- ── Popup card ─────────────────────────────────────── -->
 {#if panelOpen}
 	<div
-		bind:this={panelEl}
+		bind:this={panel.el}
 		class="popup-card"
 		class:panel-fullscreen={panelFullscreen}
-		class:js-positioned={panelInitialized && viewport.isDesktop}
-		style={panelInitialized && viewport.isDesktop
-			? `left:${panelX}px; top:${panelY}px; width:${panelW}px;${panelH ? ` height:${panelH}px;` : ''} right:auto; transform:none;`
+		class:js-positioned={panel.initialized && viewport.isDesktop}
+		style={panel.initialized && viewport.isDesktop
+			? `left:${panel.x}px; top:${panel.y}px; width:${panel.w}px;${panel.h ? ` height:${panel.h}px;` : ''} right:auto; transform:none;`
 			: ''}
 		aria-modal="true"
 		role="dialog"
 	>
 		<div
 			class="panel-drag-handle"
-			onpointerdown={onDragStart}
+			onpointerdown={panel.onDragStart}
 			aria-label="Drag panel"
 			role="button"
 			tabindex="-1"
@@ -422,7 +307,7 @@
 		</div>
 
 		{#each RESIZE_DIRS as dir}
-			<div class="resize-handle resize-{dir}" role="presentation" onpointerdown={(e) => onResizeStart(e, dir)}></div>
+			<div class="resize-handle resize-{dir}" role="presentation" onpointerdown={(e) => panel.onResizeStart(e, dir)}></div>
 		{/each}
 
 		<div class="popup-header">
