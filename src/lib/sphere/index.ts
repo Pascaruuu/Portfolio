@@ -3,7 +3,6 @@ import type { HotspotState, SphereCallbacks, SphereControls } from '../types.js'
 import {
 	ACCENT,
 	AUTO_SPEED,
-	HOTSPOT_DEFS,
 	HOVER_RADIUS_SQ,
 	INERTIA,
 	MOBILE_VERTICAL_SHIFT_RATIO,
