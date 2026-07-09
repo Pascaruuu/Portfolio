@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import LoadingScreen from '$lib/components/LoadingScreen.svelte';
+	import LightspeedIntro from '$lib/components/LightspeedIntro.svelte';
 	import { navItems } from '$lib/portfolio-data.js';
 	import { scrambleText } from '$lib/text-scramble.js';
 	import { initSphere, HOTSPOT_DEFS } from '$lib/sphere.js';
@@ -169,7 +169,7 @@
 
 <svelte:window onkeydown={(e) => { if (e.key === 'Escape' && panelOpen) closePanel(); }} />
 
-<LoadingScreen
+<LightspeedIntro
 	progress={loadProgress}
 	visible={loadingVisible}
 	on:exit={() => {

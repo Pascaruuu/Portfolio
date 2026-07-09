@@ -1,59 +1,29 @@
 <script lang="ts">
-	import { createEventDispatcher, onMount, tick } from 'svelte';
+	import * as THREE from 'three';
+	import type { EffectComposer } from 'postprocessing';
+	import { onMount, tick, createEventDispatcher } from 'svelte';
+	import { createAsciiRenderer } from '$lib/sphere/ascii.js';
+	import { createLightspeedStreaks, type LightspeedStreaks } from '$lib/lightspeed/streaks.js';
+	import { viewport } from '$lib/viewport.svelte.js';
 
 	type Phase = 'wake' | 'accelerate' | 'peak' | 'exiting' | 'done';
 	type ProgressMode = 'sprint' | 'stall';
-
-	interface TrailPoint {
-		x: number;
-		y: number;
-	}
-
-	interface TrailGlyph {
-		char: string;
-		opacity: number;
-	}
-
-	interface Star {
-		id: number;
-		x: number;
-		y: number;
-		z: number;
-		pz: number;
-		fadeOpacity: number;
-		fadeDuration: number;
-		history: TrailPoint[];
-	}
 
 	let { progress, visible = true }: { progress: number; visible?: boolean } = $props();
 
 	const dispatch = createEventDispatcher<{ done: void; exit: void }>();
 
-	const STAR_COUNT = 80;
 	const WAKE_MS = 800;
 	const ACCELERATE_MS = 2500;
 	const MIN_PEAK_MS = 5000;
-	const TRAIL_DECAY_MS = 600;
-	const TRAIL_FADE_MS = 150;
 	const PLANET_ZOOM_MS = 800;
 	const EXIT_TOTAL_MS = PLANET_ZOOM_MS;
-	const Z_FAR = 800;
-	const FOCAL_LENGTH = 300;
-	const STAR_SPREAD = 1.45;
-	const TRAIL_LENGTH = 6;
-	const TRAIL_GLYPHS: TrailGlyph[] = [
-		{ char: '·', opacity: 0.15 },
-		{ char: '·', opacity: 0.25 },
-		{ char: '∗', opacity: 0.45 },
-		{ char: '∗', opacity: 0.65 },
-		{ char: '×', opacity: 0.85 },
-		{ char: '×', opacity: 1 },
-	];
-	let stars = $state<Star[]>([]);
+	const WAKE_SPEED = 30;
+	const PEAK_SPEED = 480;
+
+	let canvasEl = $state<HTMLCanvasElement | null>(null);
 	let phase = $state<Phase>('wake');
 	let overlayOpacity = $state(0);
-	let wakeT = $state(0);
-	let accelerateT = $state(0);
 	let exitT = $state(0);
 	let displayedProgress = $state(0);
 
@@ -66,65 +36,17 @@
 	let progressSegmentUntil = 0;
 	let progressStep = 0;
 
+	let renderer: THREE.WebGLRenderer | undefined;
+	let camera: THREE.PerspectiveCamera | undefined;
+	let composer: EffectComposer | undefined;
+	let disposeComposer: (() => void) | undefined;
+	let streaks: LightspeedStreaks | undefined;
+	let disposed = false;
+
 	const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
 	const easeOutQuart = (value: number): number => 1 - Math.pow(1 - value, 4);
 	const easeOutCubic = (value: number): number => 1 - Math.pow(1 - value, 3);
 	const randomBetween = (min: number, max: number): number => min + Math.random() * (max - min);
-
-	function getViewport(): { width: number; height: number; cx: number; cy: number } {
-		const width = window.innerWidth;
-		const height = window.innerHeight;
-
-		return {
-			width,
-			height,
-			cx: width / 2,
-			cy: height / 2,
-		};
-	}
-
-	function project(x: number, y: number, z: number): TrailPoint {
-		const { cx, cy } = getViewport();
-		const safeZ = Math.max(z, 0.001);
-
-		return {
-			x: (x / safeZ) * FOCAL_LENGTH + cx,
-			y: (y / safeZ) * FOCAL_LENGTH + cy,
-		};
-	}
-
-	function randomStarXY(): { x: number; y: number } {
-		const { width, height } = getViewport();
-
-		return {
-			x: randomBetween(-width / 2, width / 2) * STAR_SPREAD,
-			y: randomBetween(-height / 2, height / 2) * STAR_SPREAD,
-		};
-	}
-
-	function makeHistory(point: TrailPoint): TrailPoint[] {
-		return Array.from({ length: TRAIL_LENGTH }, () => ({ ...point }));
-	}
-
-	function makeStar(id: number, z: number, fadeIn = false): Star {
-		const { x, y } = randomStarXY();
-		const point = project(x, y, z);
-
-		return {
-			id,
-			x,
-			y,
-			z,
-			pz: z,
-			fadeOpacity: fadeIn ? 0 : 1,
-			fadeDuration: randomBetween(400, 700),
-			history: makeHistory(point),
-		};
-	}
-
-	function respawnStar(star: Star): Star {
-		return makeStar(star.id, Z_FAR, true);
-	}
 
 	function chooseProgressSegment(elapsed: number): void {
 		progressMode = progressMode === 'sprint' ? 'stall' : 'sprint';
@@ -151,48 +73,17 @@
 		displayedProgress = Math.min(0.92, displayedProgress + progressStep * frameScale);
 	}
 
-	function getStarSpeed(): number {
-		if (phase === 'wake') return 0.5;
-		if (phase === 'accelerate') return 0.5 + (8 - 0.5) * easeOutQuart(accelerateT);
+	function getStreakSpeed(accelerateT: number): number {
+		if (phase === 'wake') return WAKE_SPEED;
+		if (phase === 'accelerate') return WAKE_SPEED + (PEAK_SPEED - WAKE_SPEED) * easeOutQuart(accelerateT);
 		if (phase === 'exiting') return 0;
-		return 8;
-	}
-
-	function isTrailPointVisible(point: TrailPoint): boolean {
-		const { width, height } = getViewport();
-		return point.x >= 0 && point.x <= width && point.y >= 0 && point.y <= height;
-	}
-
-	function isStarVisible(star: Star): boolean {
-		const point = project(star.x, star.y, star.z);
-		const { width, height } = getViewport();
-		return point.x >= -50 && point.x <= width + 50 && point.y >= -50 && point.y <= height + 50;
-	}
-
-	function getTrailGlyph(index: number): TrailGlyph {
-		return TRAIL_GLYPHS[index] ?? { char: '×', opacity: 1 };
-	}
-
-	function trailPointStyle(star: Star, point: TrailPoint, index: number): string {
-		const opacity = getTrailGlyph(index).opacity * star.fadeOpacity * getTrailDecayOpacity(index);
-		return `left:${point.x}px;top:${point.y}px;opacity:${opacity};`;
-	}
-
-	function getTrailDecayOpacity(index: number): number {
-		if (phase !== 'exiting' && phase !== 'done') return 1;
-		if (index >= TRAIL_LENGTH - 1) return 1;
-
-		const finalTrailIndex = TRAIL_LENGTH - 2;
-		const stagger = finalTrailIndex === 0 ? 0 : (TRAIL_DECAY_MS - TRAIL_FADE_MS) / finalTrailIndex;
-		const fadeStart = index * stagger;
-		const fadeProgress = clamp01((exitT - fadeStart) / TRAIL_FADE_MS);
-		return 1 - fadeProgress;
+		return PEAK_SPEED;
 	}
 
 	function planetZoomStyle(): string {
-		const progress = clamp01(exitT / PLANET_ZOOM_MS);
-		const eased = easeOutCubic(progress);
-		const halo = 1 - Math.abs(progress - 0.5) / 0.5;
+		const p = clamp01(exitT / PLANET_ZOOM_MS);
+		const eased = easeOutCubic(p);
+		const halo = 1 - Math.abs(p - 0.5) / 0.5;
 		const haloOpacity = Math.max(0, halo) * 0.15;
 		const blur = Math.max(0, halo) * 60;
 		const spread = Math.max(0, halo) * 20;
@@ -210,6 +101,7 @@
 		if (phase === 'exiting') {
 			exitT = performance.now() - exitStartedAt;
 			overlayOpacity = 1 - easeOutCubic(clamp01(exitT / EXIT_TOTAL_MS));
+			streaks?.setSpeed(0);
 
 			if (exitT >= EXIT_TOTAL_MS) {
 				phase = 'done';
@@ -221,8 +113,7 @@
 			return;
 		}
 
-		wakeT = clamp01(elapsed / WAKE_MS);
-		accelerateT = clamp01((elapsed - WAKE_MS) / (ACCELERATE_MS - WAKE_MS));
+		const accelerateT = clamp01((elapsed - WAKE_MS) / (ACCELERATE_MS - WAKE_MS));
 		updateDisplayedProgress(elapsed, deltaMs);
 
 		if (elapsed < WAKE_MS) {
@@ -232,6 +123,8 @@
 		} else {
 			phase = 'peak';
 		}
+
+		streaks?.setSpeed(getStreakSpeed(accelerateT));
 
 		if (progress >= 1 && elapsed >= MIN_PEAK_MS) {
 			phase = 'exiting';
@@ -244,38 +137,70 @@
 		}
 	}
 
-	function advanceStars(deltaMs: number): void {
-		if (phase === 'exiting' || phase === 'done') return;
-
-		stars = stars.map((star) => {
-			const speed = getStarSpeed();
-			const pz = star.z;
-			const z = star.z - speed * (deltaMs / 16.67);
-
-			if (z <= 0) {
-				return respawnStar(star);
-			}
-
-			const previousProjected = project(star.x, star.y, pz);
-			const projected = project(star.x, star.y, z);
-			const nextHistory = [...star.history.slice(1, TRAIL_LENGTH - 1), previousProjected, projected];
-			const nextStar = {
-				...star,
-				pz,
-				z,
-				fadeOpacity: Math.min(1, star.fadeOpacity + deltaMs / star.fadeDuration),
-				history: nextHistory,
-			};
-
-			return nextStar;
-		});
+	function disposeAll(): void {
+		if (disposed) return;
+		disposed = true;
+		disposeComposer?.();
+		streaks?.dispose();
+		renderer?.dispose();
+		renderer = undefined;
+		camera = undefined;
+		composer = undefined;
+		disposeComposer = undefined;
+		streaks = undefined;
 	}
 
 	onMount(() => {
-		stars = Array.from({ length: STAR_COUNT }, (_, index) => {
-			const z = Z_FAR - (index / STAR_COUNT) * (Z_FAR - 1);
-			return makeStar(index, z);
-		});
+		// This component can mount before +page.svelte's own onMount (which
+		// calls viewport.init()) runs, since Svelte mounts children before
+		// parent onMount callbacks fire. init() is idempotent, so calling it
+		// here too guarantees vw/vh are populated before first render.
+		viewport.init();
+
+		if (!canvasEl) return;
+
+		renderer = new THREE.WebGLRenderer({ canvas: canvasEl, antialias: true, alpha: false });
+		renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+		renderer.setSize(viewport.vw, viewport.vh);
+
+		const css = getComputedStyle(document.documentElement);
+		const bgHex = css.getPropertyValue('--bg').trim() || css.getPropertyValue('--portfolio-bg').trim() || '#080b14';
+		renderer.setClearColor(new THREE.Color(bgHex), 1);
+
+		const scene = new THREE.Scene();
+		camera = new THREE.PerspectiveCamera(65, viewport.vw / Math.max(1, viewport.vh), 1, 2000);
+		camera.position.set(0, 0, 0);
+
+		streaks = createLightspeedStreaks(scene);
+
+		// TEMP DEBUG — remove before commit
+		{
+			const FAR_SPAWN_Z = -1408; // mirrors streaks.ts's private FAR_SPAWN_Z constant
+			const aOffsetAttr = streaks.mesh.geometry.getAttribute('aOffset') as THREE.InstancedBufferAttribute;
+			const arr = aOffsetAttr.array as Float32Array;
+			const count = aOffsetAttr.count;
+			const positiveY: number[] = [];
+			const negativeY: number[] = [];
+			for (let i = 0; i < count && (positiveY.length < 2 || negativeY.length < 2); i++) {
+				const y = arr[i * 3 + 1]!;
+				if (y > 0 && positiveY.length < 2) positiveY.push(i);
+				if (y < 0 && negativeY.length < 2) negativeY.push(i);
+			}
+			camera.updateMatrixWorld();
+			for (const i of [...positiveY, ...negativeY]) {
+				const x = arr[i * 3]!;
+				const y = arr[i * 3 + 1]!;
+				const v = new THREE.Vector3(x, y, FAR_SPAWN_Z);
+				v.project(camera);
+				console.log(`[lightspeed debug] instance ${i} raw(x=${x}, y=${y}, z=${FAR_SPAWN_Z}) -> NDC(x=${v.x}, y=${v.y})`);
+			}
+		}
+		// END TEMP DEBUG
+
+		const ascii = createAsciiRenderer(renderer, scene, camera, false);
+		composer = ascii.composer;
+		disposeComposer = ascii.dispose;
+
 		startedAt = performance.now();
 		progressSegmentUntil = randomBetween(80, 400);
 		progressStep = randomBetween(0.015, 0.04);
@@ -287,7 +212,8 @@
 			lastFrame = now;
 
 			updatePhase(elapsed, delta);
-			advanceStars(delta);
+			streaks?.update(delta);
+			composer?.render();
 
 			if (phase !== 'done') frameId = requestAnimationFrame(animateFrame);
 		};
@@ -299,31 +225,35 @@
 
 		return () => {
 			cancelAnimationFrame(frameId);
+			disposeAll();
 		};
+	});
+
+	$effect(() => {
+		if (!visible) {
+			cancelAnimationFrame(frameId);
+			disposeAll();
+		}
+	});
+
+	$effect(() => {
+		const vw = viewport.vw;
+		const vh = viewport.vh;
+		if (!renderer || !composer || !camera) return;
+		renderer.setSize(vw, vh);
+		composer.setSize(vw, vh);
+		camera.aspect = vw / Math.max(1, vh);
+		camera.updateProjectionMatrix();
 	});
 </script>
 
 <div
-	class="loading-screen"
+	class="lightspeed-intro"
 	style:opacity={!visible ? 0 : overlayOpacity}
 	style:pointer-events={!visible ? 'none' : 'auto'}
 	aria-hidden="true"
 >
-	<div class="starfield">
-		{#each stars as star (star.id)}
-			{#if isStarVisible(star)}
-				<div class="star">
-					{#each star.history as point, index}
-						{#if isTrailPointVisible(point)}
-							<span class="star-point" style={trailPointStyle(star, point, index)}>
-								{getTrailGlyph(index).char}
-							</span>
-						{/if}
-					{/each}
-				</div>
-			{/if}
-		{/each}
-	</div>
+	<canvas bind:this={canvasEl} class="lightspeed-canvas"></canvas>
 
 	<div class="progress-bar">
 		<div class="progress-track"></div>
@@ -334,11 +264,10 @@
 	{#if phase === 'exiting' || phase === 'done'}
 		<div class="planet-zoom" style={planetZoomStyle()}></div>
 	{/if}
-
 </div>
 
 <style>
-	.loading-screen {
+	.lightspeed-intro {
 		position: fixed;
 		inset: 0;
 		z-index: 9999;
@@ -349,29 +278,10 @@
 		transition: opacity 0.6s ease;
 	}
 
-	.starfield {
+	.lightspeed-canvas {
 		position: absolute;
 		inset: 0;
-		overflow: hidden;
-	}
-
-	.star {
-		display: contents;
-	}
-
-	.star-point {
-		position: absolute;
-		color: var(--portfolio-text-soft);
-		font-size: 12px;
-		line-height: 1;
-		white-space: pre;
 		display: block;
-		font-family: inherit;
-		font-weight: 400;
-		letter-spacing: 0;
-		text-shadow: 0 0 8px rgba(var(--portfolio-text-rgb), 0.14);
-		transform: translate(-50%, -50%);
-		will-change: left, top, opacity;
 	}
 
 	.progress-bar {
@@ -421,5 +331,4 @@
 		pointer-events: none;
 		transform: translate(-50%, -50%);
 	}
-
 </style>

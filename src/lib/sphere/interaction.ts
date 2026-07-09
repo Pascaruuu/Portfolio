@@ -9,6 +9,7 @@ import {
 } from './constants.js';
 import type { HotspotEntry } from './types.js';
 import type { SectionId, SphereCallbacks } from '../types.js';
+import { viewport } from '../viewport.svelte.js';
 
 interface InteractionState {
 	isDragging: boolean;
@@ -129,8 +130,8 @@ export function createInteraction(config: {
 	function worldToScreen(pos: THREE.Vector3): { x: number; y: number } {
 		screenProjector.copy(pos).project(camera);
 		return {
-			x: (screenProjector.x * 0.5 + 0.5) * window.innerWidth,
-			y: (-screenProjector.y * 0.5 + 0.5) * window.innerHeight,
+			x: (screenProjector.x * 0.5 + 0.5) * viewport.vw,
+			y: (-screenProjector.y * 0.5 + 0.5) * viewport.vh,
 		};
 	}
 
@@ -161,8 +162,8 @@ export function createInteraction(config: {
 		asciiEl.style.cursor = 'grab';
 
 		if (dist < DRAG_THRESHOLD) {
-			mouse.x = (clientX / window.innerWidth) * 2 - 1;
-			mouse.y = (clientY / window.innerHeight) * -2 + 1;
+			mouse.x = (clientX / viewport.vw) * 2 - 1;
+			mouse.y = (clientY / viewport.vh) * -2 + 1;
 			raycaster.setFromCamera(mouse, camera);
 			const hits = raycaster.intersectObjects(clickMeshes);
 			const [hit] = hits;

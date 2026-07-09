@@ -1,7 +1,10 @@
 @import './theme.css';
+@import '../generated/breakpoints.css';
 
-/* `@media (max-width: 760px)` queries in this file correspond to
-   BP_DESKTOP in src/lib/viewport.svelte.ts — keep them in sync. */
+/* --mobile / --welcome-compact-height are @custom-media aliases generated
+   from BP_DESKTOP / WELCOME_COMPACT_H in src/lib/viewport.svelte.ts by
+   scripts/generate-breakpoints.mjs (see generated/breakpoints.css). Sync
+   is automatic — do not hand-edit the breakpoint values here. */
 
 /* ─── Variables ──────────────────────────────────────── */
 :root {
@@ -330,7 +333,7 @@ html {
   cursor: grabbing;
 }
 
-@media (max-width: 760px) {
+@media (--mobile) {
   .panel-drag-handle {
     display: none;
   }
@@ -351,7 +354,7 @@ html {
 .resize-sw { bottom: -4px; left: -4px;  width: 12px; height: 12px; cursor: sw-resize; }
 .resize-se { bottom: -4px; right: -4px; width: 12px; height: 12px; cursor: se-resize; }
 
-@media (max-width: 760px) {
+@media (--mobile) {
   .resize-handle {
     display: none;
   }
@@ -652,7 +655,7 @@ html {
   .skill-fill    { transition: none; }
 }
 
-@media (max-width: 760px) {
+@media (--mobile) {
   .welcome-block {
     top: max(72px, env(safe-area-inset-top));
     left: 20px;
@@ -827,11 +830,9 @@ html {
   }
 }
 
-/* Stricter short-viewport tier, deliberately below COMPACT_H = 680
-   (viewport.svelte.ts), which only governs camera zoom-out. This tier
-   hides .welcome-role/.welcome-hint and caps .popup-card height. Do not
-   unify with COMPACT_H. */
-@media (max-height: 640px) and (max-width: 760px) {
+/* WELCOME_COMPACT_H rationale now lives in src/lib/viewport.svelte.ts —
+   see the doc comment on that export. */
+@media (--welcome-compact-height) and (--mobile) {
   .welcome-block {
     top: max(58px, env(safe-area-inset-top));
   }

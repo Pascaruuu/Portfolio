@@ -63,7 +63,7 @@ export async function initSphere(
 	camera.layers.enable(1);
 	camera.position.set(0, 0, cameraProfile.baseZ);
 	camera.lookAt(0, 0, 0);
-	const { composer, dispose: disposeComposer, setSphereScreenPos, setWorldState, setViewOffset } = createAsciiRenderer(renderer, scene, camera);
+	const { composer, dispose: disposeComposer, setSphereScreenPos, setWorldState, setViewOffset } = createAsciiRenderer(renderer, scene, camera, true);
 	const baseCameraPos = new THREE.Vector3(0, 0, cameraProfile.baseZ);
 	const targetCameraPos = baseCameraPos.clone();
 	const currentLookAt = new THREE.Vector3();
@@ -238,18 +238,15 @@ export async function initSphere(
 
 		projectedSphereCenter.set(0, 0, 0).project(camera);
 		projectedSphereEdge.set(SPHERE_R, 0, 0).project(camera);
-		// Live window reads on purpose: this runs every frame for pixel-projection
-		// math, independent of the desktop/mobile decision. viewport.svelte.ts
-		// (BP_DESKTOP) remains the authority for breakpoint logic.
-		const screenCenterX = (projectedSphereCenter.x * 0.5 + 0.5) * window.innerWidth;
-		const screenCenterY = (-projectedSphereCenter.y * 0.5 + 0.5) * window.innerHeight;
-		const screenEdgeX = (projectedSphereEdge.x * 0.5 + 0.5) * window.innerWidth;
-		const screenEdgeY = (-projectedSphereEdge.y * 0.5 + 0.5) * window.innerHeight;
+		const screenCenterX = (projectedSphereCenter.x * 0.5 + 0.5) * viewport.vw;
+		const screenCenterY = (-projectedSphereCenter.y * 0.5 + 0.5) * viewport.vh;
+		const screenEdgeX = (projectedSphereEdge.x * 0.5 + 0.5) * viewport.vw;
+		const screenEdgeY = (-projectedSphereEdge.y * 0.5 + 0.5) * viewport.vh;
 		const projectedRadius = Math.hypot(screenEdgeX - screenCenterX, screenEdgeY - screenCenterY);
 		setSphereScreenPos(
-			screenCenterX / window.innerWidth,
-			1 - screenCenterY / window.innerHeight,
-			projectedRadius / window.innerHeight
+			screenCenterX / viewport.vw,
+			1 - screenCenterY / viewport.vh,
+			projectedRadius / viewport.vh
 		);
 		asciiStarsBg.style.setProperty('--sphere-x', `${screenCenterX}px`);
 		asciiStarsBg.style.setProperty('--sphere-y', `${screenCenterY}px`);
@@ -327,7 +324,9 @@ export async function initSphere(
 			renderer.setSize(viewport.vw, viewport.vh);
 			composer.setSize(viewport.vw, viewport.vh);
 
-			// Re-apply view offset with updated dimensions
+			// Re-apply view offset target with updated dimensions; the per-frame
+			// lerp in animate() carries current toward it smoothly, same as
+			// setPanelOpen() below -- do not snap here.
 			const isDesktop = viewport.isDesktop;
 			targetViewOffsetX = isDesktop && state.isPanelOpen
 				? viewport.vw * PANEL_SHIFT_RATIO
@@ -336,9 +335,6 @@ export async function initSphere(
 			targetViewOffsetY = !isDesktop && state.isPanelOpen
 				? -viewport.vh * MOBILE_VERTICAL_SHIFT_RATIO
 				: 0;
-			// Snap current to target on resize (no lerp across dimension change)
-			currentViewOffsetX = targetViewOffsetX;
-			currentViewOffsetY = targetViewOffsetY;
 		},
 		setPanelOpen(open: boolean) {
 			state.isPanelOpen = open;

@@ -12,6 +12,7 @@ uniform float sphereRadius;
 uniform mat4 viewToSphereObject;
 uniform vec3 sphereCenterView;
 uniform vec2 uViewOffset; // NDC-space offset from camera.setViewOffset
+uniform bool uSphereEnabled;
 
 float hash3(vec3 p) {
   p = fract(p * vec3(443.897, 441.423, 437.195));
@@ -52,69 +53,75 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   vec4 scene = texture2D(inputBuffer, cellCenter);
   float luminance = dot(scene.rgb, vec3(0.299, 0.587, 0.114));
 
-  // Reconstruct a view-space ray to find the surface point.
-  vec2 ndc = uv * 2.0 - 1.0 - uViewOffset;
-  vec2 sc = sphereCenter * 2.0 - 1.0;
-  float sr = sphereRadius * 2.0;
-  vec2 localNDC = ndc - sc;
-  float distFromCenter = length(localNDC) / sr;
+  float luma = luminance;
+  float terrainRampBoost = 0.0;
 
-  // Ray in NDC space from camera toward pixel
-  // Camera at (0,0,1) in NDC, sphere at sc with radius sr
-  // Simple 2D+depth ray: origin=(0,0), dir=normalize(ndc - sphereCenter_ndc, depth)
-  // Use sphere screen projection directly for intersection
-  // Ray origin in screen-normalized space
-  float aspect = resolution.x / resolution.y;
+  if (uSphereEnabled) {
+    // Reconstruct a view-space ray to find the surface point.
+    vec2 ndc = uv * 2.0 - 1.0 - uViewOffset;
+    vec2 sc = sphereCenter * 2.0 - 1.0;
+    float sr = sphereRadius * 2.0;
+    vec2 localNDC = ndc - sc;
+    float distFromCenter = length(localNDC) / sr;
 
-  // Reconstruct view-space ray (FOV=55deg, tan(27.5deg)=0.5206)
-  float tanHalfFov = 0.5206;
-  vec3 rayOrigin = vec3(0.0); // camera at origin in view space
-  vec3 rayDir = normalize(vec3(ndc.x * aspect * tanHalfFov, ndc.y * tanHalfFov, -1.0));
+    // Ray in NDC space from camera toward pixel
+    // Camera at (0,0,1) in NDC, sphere at sc with radius sr
+    // Simple 2D+depth ray: origin=(0,0), dir=normalize(ndc - sphereCenter_ndc, depth)
+    // Use sphere screen projection directly for intersection
+    // Ray origin in screen-normalized space
+    float aspect = resolution.x / resolution.y;
 
-  // Ray-sphere intersection in view space
-  vec3 oc = rayOrigin - sphereCenterView;
-  float b2 = dot(oc, rayDir);
-  float c = dot(oc, oc) - 1.0;
-  float disc = b2 * b2 - c;
+    // Reconstruct view-space ray (FOV=55deg, tan(27.5deg)=0.5206)
+    float tanHalfFov = 0.5206;
+    vec3 rayOrigin = vec3(0.0); // camera at origin in view space
+    vec3 rayDir = normalize(vec3(ndc.x * aspect * tanHalfFov, ndc.y * tanHalfFov, -1.0));
 
-  vec3 surfacePoint = vec3(0.0);
-  float surfaceNoise = 0.5;
-  if (disc > 0.0) {
-    float t = -b2 - sqrt(disc);
-    vec3 hitView = rayOrigin + t * rayDir;
-    surfacePoint = (viewToSphereObject * vec4(hitView - sphereCenterView, 0.0)).xyz;
-    surfaceNoise = fbm(surfacePoint * 2.5);
+    // Ray-sphere intersection in view space
+    vec3 oc = rayOrigin - sphereCenterView;
+    float b2 = dot(oc, rayDir);
+    float c = dot(oc, oc) - 1.0;
+    float disc = b2 * b2 - c;
+
+    vec3 surfacePoint = vec3(0.0);
+    float surfaceNoise = 0.5;
+    if (disc > 0.0) {
+      float t = -b2 - sqrt(disc);
+      vec3 hitView = rayOrigin + t * rayDir;
+      surfacePoint = (viewToSphereObject * vec4(hitView - sphereCenterView, 0.0)).xyz;
+      surfaceNoise = fbm(surfacePoint * 2.5);
+    }
+
+    // --- Terrain depth ---
+    float terrain = 0.0;
+    if (disc > 0.0) {
+      // Multi-octave FBM for terrain elevation
+      terrain = fbm(surfacePoint * 1.8 + vec3(3.7, 1.2, 5.5));
+      // terrain is 0..1, remap to -0.5..0.5
+      terrain = terrain - 0.5;
+    }
+
+    // Ocean zones: terrain < -0.1 -> suppress luminance (dark water)
+    // Land zones:  terrain > 0.1  -> boost luminance (bright landmass)
+    // Ridge zones: terrain > 0.35 -> extra boost (mountain highlights)
+
+    // Edge erosion
+    float edgeFactor = smoothstep(0.55, 1.0, distFromCenter);
+    float erosion = surfaceNoise * 0.9 * edgeFactor;
+
+    // Terrain boost/suppress
+    float terrainBoost = 0.0;
+    if (disc > 0.0) {
+      terrainBoost = smoothstep(-0.1, 0.35, terrain) * 1.2;
+      float oceanSuppress = smoothstep(0.0, -0.25, terrain) * 0.9;
+      terrainBoost -= oceanSuppress;
+    }
+
+    luma = luminance - erosion + terrainBoost;
+    terrainRampBoost = disc > 0.0 ? smoothstep(0.1, 0.45, terrain) * 0.5 : 0.0;
   }
 
-  // --- Terrain depth ---
-  float terrain = 0.0;
-  if (disc > 0.0) {
-    // Multi-octave FBM for terrain elevation
-    terrain = fbm(surfacePoint * 1.8 + vec3(3.7, 1.2, 5.5));
-    // terrain is 0..1, remap to -0.5..0.5
-    terrain = terrain - 0.5;
-  }
-
-  // Ocean zones: terrain < -0.1 -> suppress luminance (dark water)
-  // Land zones:  terrain > 0.1  -> boost luminance (bright landmass)
-  // Ridge zones: terrain > 0.35 -> extra boost (mountain highlights)
-
-  // Edge erosion
-  float edgeFactor = smoothstep(0.55, 1.0, distFromCenter);
-  float erosion = surfaceNoise * 0.9 * edgeFactor;
-
-  // Terrain boost/suppress
-  float terrainBoost = 0.0;
-  if (disc > 0.0) {
-    terrainBoost = smoothstep(-0.1, 0.35, terrain) * 1.2;
-    float oceanSuppress = smoothstep(0.0, -0.25, terrain) * 0.9;
-    terrainBoost -= oceanSuppress;
-  }
-
-  float luma = luminance - erosion + terrainBoost;
   if (luma < 0.12) discard;
 
-  float terrainRampBoost = disc > 0.0 ? smoothstep(0.1, 0.45, terrain) * 0.5 : 0.0;
   float remapped = clamp((luma - 0.05) / (1.0 - 0.05), 0.0, 1.0);
   remapped = clamp(remapped + terrainRampBoost, 0.0, 1.0);
   float charIndex = floor(remapped * (uCharactersCount - 1.0));
@@ -129,7 +136,7 @@ class ASCIIEffect extends Effect {
 	private readonly sphereCenterUniform: THREE.Uniform<THREE.Vector2>;
 	private readonly sphereRadiusUniform: THREE.Uniform<number>;
 
-	constructor(characters: string, cellSize: number, color: string) {
+	constructor(characters: string, cellSize: number, color: string, sphereEnabled: boolean) {
 		const count = characters.length;
 		const atlas = document.createElement('canvas');
 		atlas.width = cellSize * count;
@@ -167,6 +174,7 @@ class ASCIIEffect extends Effect {
 				['viewToSphereObject', viewToSphereObject],
 				['sphereCenterView', sphereCenterView],
 				['uViewOffset', new THREE.Uniform(new THREE.Vector2(0, 0))],
+				['uSphereEnabled', new THREE.Uniform(sphereEnabled)],
 			]),
 		});
 
@@ -187,16 +195,21 @@ class ASCIIEffect extends Effect {
 	setViewOffset(ndcX: number, ndcY: number): void {
 		this.uniforms.get('uViewOffset')!.value.set(ndcX, ndcY);
 	}
+
+	setSphereEnabled(enabled: boolean): void {
+		this.uniforms.get('uSphereEnabled')!.value = enabled;
+	}
 }
 
 export function createAsciiRenderer(
 	renderer: THREE.WebGLRenderer,
 	scene: THREE.Scene,
-	camera: THREE.Camera
-): { composer: EffectComposer; dispose(): void; setSphereScreenPos(cx: number, cy: number, r: number): void; setWorldState(viewToSphereObject: THREE.Matrix4, sphereCenterView: THREE.Vector3): void; setViewOffset(ndcX: number, ndcY: number): void } {
+	camera: THREE.Camera,
+	sphereEnabled: boolean
+): { composer: EffectComposer; dispose(): void; setSphereScreenPos(cx: number, cy: number, r: number): void; setWorldState(viewToSphereObject: THREE.Matrix4, sphereCenterView: THREE.Vector3): void; setViewOffset(ndcX: number, ndcY: number): void; setSphereEnabled(enabled: boolean): void } {
 	const composer = new EffectComposer(renderer);
 	composer.addPass(new RenderPass(scene, camera));
-	const effect = new ASCIIEffect(' .,·:;!|=+xo#%&@██', 6, ASCII_COLOR);
+	const effect = new ASCIIEffect(' .,·:;!|=+xo#%&@██', 6, ASCII_COLOR, sphereEnabled);
 	composer.addPass(new EffectPass(camera, effect));
 
 	return {
@@ -209,6 +222,9 @@ export function createAsciiRenderer(
 		},
 		setViewOffset(ndcX: number, ndcY: number): void {
 			effect.setViewOffset(ndcX, ndcY);
+		},
+		setSphereEnabled(enabled: boolean): void {
+			effect.setSphereEnabled(enabled);
 		},
 		dispose() {
 			composer.dispose();

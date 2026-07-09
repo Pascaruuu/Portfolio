@@ -8,6 +8,14 @@ export const BP_DESKTOP = 760;
  */
 export const COMPACT_H = 680;
 
+/**
+ * Stricter short-viewport tier for CSS layout compaction only (hides
+ * .welcome-role/.welcome-hint, caps .popup-card height). Deliberately
+ * decoupled from COMPACT_H (680, camera zoom-out only) — 641-680px is
+ * camera-compact but not layout-compact, by design. Do not unify.
+ */
+export const WELCOME_COMPACT_H = 640;
+
 function createViewport() {
 	let vw = $state(0);
 	let vh = $state(0);
