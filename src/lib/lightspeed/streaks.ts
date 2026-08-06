@@ -6,9 +6,9 @@ const NEAR_RESPAWN_Z = -8;
 const FAR_SPAWN_Z = NEAR_RESPAWN_Z - FIELD_DEPTH;
 const RADIAL_SPREAD = 480;
 const SPEED_VARIANCE = 0.6;
-const TRAIL_LENGTH = 34;
-const STREAK_WIDTH = 1.4;
-const STREAK_COLOR = 0xffffff;
+const TRAIL_LENGTH = 100;
+const STREAK_WIDTH = 2;
+const STREAK_COLOR = "#ffffff";
 
 function buildStreakGeometry(): THREE.InstancedBufferGeometry {
 	const geometry = new THREE.InstancedBufferGeometry();
@@ -32,31 +32,6 @@ function buildStreakGeometry(): THREE.InstancedBufferGeometry {
 		offsets[i * 3 + 2] = FAR_SPAWN_Z + Math.random() * FIELD_DEPTH;
 		speeds[i] = 1 + (Math.random() * 2 - 1) * SPEED_VARIANCE;
 	}
-	// TEMP DEBUG — remove before commit
-	{
-		let xMin = Infinity, xMax = -Infinity, xSum = 0;
-		let yMin = Infinity, yMax = -Infinity, ySum = 0;
-		let zMin = Infinity, zMax = -Infinity;
-		for (let i = 0; i < STREAK_COUNT; i++) {
-			const x = offsets[i * 3]!;
-			const y = offsets[i * 3 + 1]!;
-			const z = offsets[i * 3 + 2]!;
-			if (x < xMin) xMin = x;
-			if (x > xMax) xMax = x;
-			xSum += x;
-			if (y < yMin) yMin = y;
-			if (y > yMax) yMax = y;
-			ySum += y;
-			if (z < zMin) zMin = z;
-			if (z > zMax) zMax = z;
-		}
-		console.log('[streaks debug] instanceCount =', offsets.length / 3);
-		console.log('[streaks debug] X  min=%s max=%s mean=%s', xMin, xMax, xSum / STREAK_COUNT);
-		console.log('[streaks debug] Y  min=%s max=%s mean=%s', yMin, yMax, ySum / STREAK_COUNT);
-		console.log('[streaks debug] Z  min=%s max=%s', zMin, zMax);
-	}
-	// END TEMP DEBUG
-
 	geometry.setAttribute('aOffset', new THREE.InstancedBufferAttribute(offsets, 3));
 	geometry.setAttribute('aSpeed', new THREE.InstancedBufferAttribute(speeds, 1));
 

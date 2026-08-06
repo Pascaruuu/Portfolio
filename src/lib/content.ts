@@ -13,6 +13,7 @@ import type {
 	SkillsContent,
 	ProjectsContent,
 	ExperienceContent,
+	ArtContent,
 	ContactContent,
 	UiContent
 } from './types.js';
@@ -61,6 +62,10 @@ export function getProjects(lang: Lang): ProjectsContent {
 
 export function getExperience(lang: Lang): ExperienceContent {
 	return languageStrings[lang].sections.experience;
+}
+
+export function getArt(lang: Lang): ArtContent {
+	return languageStrings[lang].sections.art;
 }
 
 export function getContact(lang: Lang): ContactContent {

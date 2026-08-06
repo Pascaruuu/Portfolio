@@ -1,4 +1,4 @@
-export const sectionIds = ['about', 'skills', 'projects', 'experience', 'contact'] as const;
+export const sectionIds = ['about', 'skills', 'projects', 'experience', 'art', 'contact'] as const;
 export type SectionId = typeof sectionIds[number];
 export type Lang = 'en' | 'ja';
 
@@ -45,6 +45,12 @@ export interface ExperienceContent {
 	label: string;
 	heading: string;
 	items: ExperienceItem[];
+}
+
+export interface ArtContent {
+	label: string;
+	heading: string;
+	body: string;
 }
 
 export interface ContactContent {
@@ -101,8 +107,9 @@ export interface SphereCallbacks {
 }
 
 export interface SphereControls {
-	dispose:       () => void;
-	resize:        () => void;
-	setPanelOpen:  (open: boolean) => void;
-	focusSection:  (id: SectionId | null) => void;
+	dispose:         () => void;
+	resize:          () => void;
+	setPanelOpen:    (open: boolean) => void;
+	focusSection:    (id: SectionId | null) => void;
+	setWarpProgress: (p: number) => void;
 }

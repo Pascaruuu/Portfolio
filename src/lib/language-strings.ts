@@ -32,6 +32,11 @@ interface LanguageStrings {
 			heading: string;
 			items: ExperienceStrings[];
 		};
+		art: {
+			label: string;
+			heading: string;
+			body: string;
+		};
 		contact: {
 			label: string;
 			heading: string;
@@ -111,6 +116,11 @@ export const languageStrings: Record<Lang, LanguageStrings> = {
 					}
 				]
 			},
+			art: {
+				label: 'ART',
+				heading: 'Art',
+				body: 'Placeholder text — gallery coming soon.'
+			},
 			contact: {
 				label: 'Contact',
 				heading: 'Get In Touch',
@@ -186,6 +196,11 @@ export const languageStrings: Record<Lang, LanguageStrings> = {
 						desc: '学術的・個人的なプロジェクトのためにWebアプリケーションやフルスタックシステムを構築し、クリーンなアーキテクチャとUXに注力しました。'
 					}
 				]
+			},
+			art: {
+				label: 'アート',
+				heading: 'アート',
+				body: 'プレースホルダーテキスト — ギャラリーは近日公開。'
 			},
 			contact: {
 				label: '連絡',

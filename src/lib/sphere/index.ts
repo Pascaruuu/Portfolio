@@ -17,8 +17,11 @@ import { clampQuatX, createInteraction } from './interaction.js';
 import { createParticleSystem } from './particles.js';
 import { bakeTerrainTexture } from './terrain-bake.js';
 import { viewport } from '../viewport.svelte.js';
+import { prefersReducedMotion } from '../utils/prefersReducedMotion.js';
 
 export { HOTSPOT_DEFS } from './constants.js';
+
+const WARP_SCALE_START = 0.004;
 
 export async function initSphere(
 	canvas:    HTMLCanvasElement,
@@ -63,7 +66,7 @@ export async function initSphere(
 	camera.layers.enable(1);
 	camera.position.set(0, 0, cameraProfile.baseZ);
 	camera.lookAt(0, 0, 0);
-	const { composer, dispose: disposeComposer, setSphereScreenPos, setWorldState, setViewOffset } = createAsciiRenderer(renderer, scene, camera, true);
+	const { composer, dispose: disposeComposer, setSphereScreenPos, setSphereScale, setWorldState, setViewOffset } = createAsciiRenderer(renderer, scene, camera, true);
 	const baseCameraPos = new THREE.Vector3(0, 0, cameraProfile.baseZ);
 	const targetCameraPos = baseCameraPos.clone();
 	const currentLookAt = new THREE.Vector3();
@@ -82,9 +85,16 @@ export async function initSphere(
 	const autoRotateQuat = new THREE.Quaternion();
 	const identityQuat = new THREE.Quaternion();
 	const focusDir = new THREE.Vector3();
+	const sphereWorldScale = new THREE.Vector3();
+
+	// Owns the arrival warp scale. A future second object will be a sibling
+	// of sphereGroup under this group, so it isn't named sphere-specifically.
+	const warpGroup = new THREE.Group();
+	warpGroup.scale.setScalar(WARP_SCALE_START);
+	scene.add(warpGroup);
 
 	const sphereGroup = new THREE.Group();
-	scene.add(sphereGroup);
+	warpGroup.add(sphereGroup);
 
 	const ambientLight = new THREE.AmbientLight(ACCENT, 1.1);
 	scene.add(ambientLight);
@@ -113,11 +123,10 @@ export async function initSphere(
 	callbacks.onProgress?.(0.6);
 
 	// ── Interaction ──────────────────────────────────────
-	const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+	const reducedMotion = prefersReducedMotion();
 	const interaction = createInteraction({
 		asciiEl: renderer.domElement,
 		camera,
-		sphereGroup,
 		hotspotEntries,
 		hotspotById,
 		clickMeshes,
@@ -144,6 +153,16 @@ export async function initSphere(
 	let pulse        = 0;
 	let animId       = 0;
 	let asciiFrame = 0;
+
+	function setWarpProgress(p: number): void {
+		const clamped = THREE.MathUtils.clamp(p, 0, 1);
+		if (clamped >= 1) {
+			warpGroup.scale.setScalar(1);
+			return;
+		}
+		const scale = WARP_SCALE_START * Math.pow(1 / WARP_SCALE_START, clamped);
+		warpGroup.scale.setScalar(scale);
+	}
 
 	function animate(): void {
 		if (asciiFrame === 0) {
@@ -236,8 +255,12 @@ export async function initSphere(
 		camera.lookAt(currentLookAt);
 		camera.updateMatrixWorld();
 
+		// World scale, not local -- the warp scale now lives on warpGroup
+		// (sphereGroup's parent), so sphereGroup's own .scale stays at its
+		// default and would silently read wrong here.
+		sphereGroup.getWorldScale(sphereWorldScale);
 		projectedSphereCenter.set(0, 0, 0).project(camera);
-		projectedSphereEdge.set(SPHERE_R, 0, 0).project(camera);
+		projectedSphereEdge.set(SPHERE_R * sphereWorldScale.x, 0, 0).project(camera);
 		const screenCenterX = (projectedSphereCenter.x * 0.5 + 0.5) * viewport.vw;
 		const screenCenterY = (-projectedSphereCenter.y * 0.5 + 0.5) * viewport.vh;
 		const screenEdgeX = (projectedSphereEdge.x * 0.5 + 0.5) * viewport.vw;
@@ -248,6 +271,7 @@ export async function initSphere(
 			1 - screenCenterY / viewport.vh,
 			projectedRadius / viewport.vh
 		);
+		setSphereScale(sphereWorldScale.x);
 		asciiStarsBg.style.setProperty('--sphere-x', `${screenCenterX}px`);
 		asciiStarsBg.style.setProperty('--sphere-y', `${screenCenterY}px`);
 		asciiStarsBg.style.setProperty('--sphere-r', `${projectedRadius * 1.05}px`);
@@ -263,8 +287,8 @@ export async function initSphere(
 		const states: HotspotState[] = hotspotEntries.map((h, i) => {
 			h.clickMesh.getWorldPosition(h.worldPos);
 
-			// Camera sits on +Z axis; dot product with (0,0,1) = worldPos.z / SPHERE_R
-			const dot     = h.worldPos.z / SPHERE_R;
+			// Camera sits on +Z axis; dot product with (0,0,1) = worldPos.z / h.radius
+			const dot     = h.worldPos.z / h.radius;
 			const opacity = dot > 0.1
 				? THREE.MathUtils.clamp((dot - 0.1) / 0.2, 0, 1)
 				: 0;
@@ -354,5 +378,6 @@ export async function initSphere(
 			}
 		},
 		focusSection,
+		setWarpProgress,
 	};
 }

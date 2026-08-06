@@ -6,6 +6,7 @@ export const HOTSPOT_DEFS: HotspotDef[] = [
 	{ id: 'skills',     lat:  -2, lon: 108 },
 	{ id: 'projects',   lat: -44, lon: 260 },
 	{ id: 'experience', lat:  50, lon: 204 },
+	{ id: 'art',        lat:  80, lon: 350 },
 	{ id: 'contact',    lat:  -4, lon: 378 },
 ];
 
@@ -20,6 +21,21 @@ export const HOVER_RADIUS_SQ = 52 * 52; // screen-space px^2
 
 export const ACCENT = portfolioColors.accentNumber;
 export const ASCII_COLOR = portfolioColors.ascii;
+export const ASCII_CHARS = ' .,·:;!|=+xo#%&@██';
+
+/**
+ * ASCII glyph cell size on desktop viewports, in CSS pixels. This is the
+ * single tuning lever for glyph legibility -- the renderer converts it to
+ * device pixels internally (see createAsciiRenderer in sphere/ascii.ts)
+ * using its own clamped pixel ratio.
+ */
+export const ASCII_CELL_SIZE_DESKTOP = 10;
+
+/**
+ * ASCII glyph cell size on mobile viewports, in CSS pixels. Same tuning
+ * lever as ASCII_CELL_SIZE_DESKTOP; selected via viewport.isDesktop.
+ */
+export const ASCII_CELL_SIZE_MOBILE = 7;
 
 /** Fraction of viewport width the sphere shifts left (desktop) when a panel is open. */
 export const SHIFT_RATIO = 0.22;

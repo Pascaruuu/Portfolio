@@ -3,7 +3,6 @@ import {
 	AUTO_SPEED,
 	DRAG_THRESHOLD,
 	HOVER_RADIUS_SQ,
-	SPHERE_R,
 	SENSITIVITY,
 	X_CLAMP,
 } from './constants.js';
@@ -39,7 +38,6 @@ export function clampQuatX(q: THREE.Quaternion): void {
 export function createInteraction(config: {
 	asciiEl: HTMLElement;
 	camera: THREE.Camera;
-	sphereGroup: THREE.Group;
 	hotspotEntries: HotspotEntry[];
 	hotspotById: Map<SectionId, HotspotEntry>;
 	clickMeshes: THREE.Mesh[];
@@ -57,7 +55,6 @@ export function createInteraction(config: {
 	const {
 		asciiEl,
 		camera,
-		sphereGroup,
 		hotspotEntries,
 		hotspotById,
 		clickMeshes,
@@ -205,7 +202,7 @@ export function createInteraction(config: {
 			// against a rotating group; worldPos is kept current by animate()
 			let hovering = false;
 			for (const h of hotspotEntries) {
-				const dot = h.worldPos.z / SPHERE_R;
+				const dot = h.worldPos.z / h.radius;
 				if (dot < -0.15) continue; // hotspot is on the back face, invisible
 				const dx = e.clientX - h.screenX;
 				const dy = e.clientY - h.screenY;

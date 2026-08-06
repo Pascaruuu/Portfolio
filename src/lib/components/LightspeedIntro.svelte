@@ -1,36 +1,46 @@
 <script lang="ts">
 	import * as THREE from 'three';
 	import type { EffectComposer } from 'postprocessing';
-	import { onMount, tick, createEventDispatcher } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { createAsciiRenderer } from '$lib/sphere/ascii.js';
 	import { createLightspeedStreaks, type LightspeedStreaks } from '$lib/lightspeed/streaks.js';
 	import { viewport } from '$lib/viewport.svelte.js';
+	import { timeline } from '$lib/timeline.svelte.js';
 
 	type Phase = 'wake' | 'accelerate' | 'peak' | 'exiting' | 'done';
 	type ProgressMode = 'sprint' | 'stall';
 
-	let { progress, visible = true }: { progress: number; visible?: boolean } = $props();
-
-	const dispatch = createEventDispatcher<{ done: void; exit: void }>();
+	let { progress, visible = true, sphereCtl = null }: {
+		progress: number;
+		visible?: boolean;
+		sphereCtl?: {
+			setWarpProgress: (p: number) => void;
+		} | null;
+	} = $props();
 
 	const WAKE_MS = 800;
 	const ACCELERATE_MS = 2500;
-	const MIN_PEAK_MS = 5000;
-	const PLANET_ZOOM_MS = 800;
-	const EXIT_TOTAL_MS = PLANET_ZOOM_MS;
+	const MIN_PEAK_MS = 4000;
+	const BAR_FILL_DONE_MS = MIN_PEAK_MS - 1200;  // bar reaches 100% here (2800)
+	const BAR_HIDE_MS = MIN_PEAK_MS - 1000;       // bar fully hidden here (3000)
+	const BAR_EASE_MS = 500;                      // final ease window duration
+	const WARP_MS = 500;          // sphere grows dot→full over this window
+	const BG_FADE_MS = 700;       // background clears to transparent over this
+	const TOTAL_EXIT_MS = 1400;   // full exit window (unchanged)
 	const WAKE_SPEED = 30;
 	const PEAK_SPEED = 480;
 
 	let canvasEl = $state<HTMLCanvasElement | null>(null);
 	let phase = $state<Phase>('wake');
 	let overlayOpacity = $state(0);
+	let backgroundOpacity = $state(1);
 	let exitT = $state(0);
 	let displayedProgress = $state(0);
+	let barRetired = $state(false);
 
 	let frameId = 0;
 	let startedAt = 0;
 	let exitStartedAt = 0;
-	let doneEmitted = false;
 	let exitEmitted = false;
 	let progressMode: ProgressMode = 'sprint';
 	let progressSegmentUntil = 0;
@@ -45,7 +55,6 @@
 
 	const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
 	const easeOutQuart = (value: number): number => 1 - Math.pow(1 - value, 4);
-	const easeOutCubic = (value: number): number => 1 - Math.pow(1 - value, 3);
 	const randomBetween = (min: number, max: number): number => min + Math.random() * (max - min);
 
 	function chooseProgressSegment(elapsed: number): void {
@@ -61,8 +70,9 @@
 	}
 
 	function updateDisplayedProgress(elapsed: number, deltaMs: number): void {
-		if (elapsed >= 4500) {
-			const finalT = easeOutQuart(clamp01((elapsed - 4500) / 500));
+		const easeStartMs = BAR_FILL_DONE_MS - BAR_EASE_MS;
+		if (elapsed >= easeStartMs) {
+			const finalT = easeOutQuart(clamp01((elapsed - easeStartMs) / BAR_EASE_MS));
 			displayedProgress = Math.min(1, Math.max(displayedProgress, 0.92 + finalT * 0.08));
 			return;
 		}
@@ -76,23 +86,7 @@
 	function getStreakSpeed(accelerateT: number): number {
 		if (phase === 'wake') return WAKE_SPEED;
 		if (phase === 'accelerate') return WAKE_SPEED + (PEAK_SPEED - WAKE_SPEED) * easeOutQuart(accelerateT);
-		if (phase === 'exiting') return 0;
 		return PEAK_SPEED;
-	}
-
-	function planetZoomStyle(): string {
-		const p = clamp01(exitT / PLANET_ZOOM_MS);
-		const eased = easeOutCubic(p);
-		const halo = 1 - Math.abs(p - 0.5) / 0.5;
-		const haloOpacity = Math.max(0, halo) * 0.15;
-		const blur = Math.max(0, halo) * 60;
-		const spread = Math.max(0, halo) * 20;
-
-		return [
-			`width:calc(${(4 * (1 - eased)).toFixed(3)}px + ${(300 * eased).toFixed(3)}vmax)`,
-			`height:calc(${(4 * (1 - eased)).toFixed(3)}px + ${(300 * eased).toFixed(3)}vmax)`,
-			`box-shadow:0 0 ${blur.toFixed(2)}px ${spread.toFixed(2)}px rgba(var(--portfolio-text-rgb),${haloOpacity.toFixed(3)})`,
-		].join(';');
 	}
 
 	function updatePhase(elapsed: number, deltaMs: number): void {
@@ -100,21 +94,27 @@
 
 		if (phase === 'exiting') {
 			exitT = performance.now() - exitStartedAt;
-			overlayOpacity = 1 - easeOutCubic(clamp01(exitT / EXIT_TOTAL_MS));
-			streaks?.setSpeed(0);
 
-			if (exitT >= EXIT_TOTAL_MS) {
+			// warp progress: linear 0→1 over WARP_MS, sphere maps to its own curve
+			const warpP = clamp01(exitT / WARP_MS);
+			sphereCtl?.setWarpProgress(warpP);
+			streaks?.setSpeed(PEAK_SPEED * (1 - warpP * warpP * warpP));
+
+			// background fade: clears over BG_FADE_MS
+			backgroundOpacity = clamp01(1 - exitT / BG_FADE_MS);
+
+			if (exitT >= TOTAL_EXIT_MS) {
 				phase = 'done';
-				if (!doneEmitted) {
-					doneEmitted = true;
-					dispatch('done');
-				}
 			}
 			return;
 		}
 
 		const accelerateT = clamp01((elapsed - WAKE_MS) / (ACCELERATE_MS - WAKE_MS));
 		updateDisplayedProgress(elapsed, deltaMs);
+
+		if (!barRetired && elapsed >= BAR_HIDE_MS) {
+			barRetired = true;
+		}
 
 		if (elapsed < WAKE_MS) {
 			phase = 'wake';
@@ -130,7 +130,7 @@
 			phase = 'exiting';
 			if (!exitEmitted) {
 				exitEmitted = true;
-				dispatch('exit');
+				timeline.mark('exit', elapsed);
 			}
 			exitStartedAt = performance.now();
 			exitT = 0;
@@ -159,7 +159,7 @@
 
 		if (!canvasEl) return;
 
-		renderer = new THREE.WebGLRenderer({ canvas: canvasEl, antialias: true, alpha: false });
+		renderer = new THREE.WebGLRenderer({ canvas: canvasEl, antialias: true, alpha: true });
 		renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 		renderer.setSize(viewport.vw, viewport.vh);
 
@@ -172,30 +172,6 @@
 		camera.position.set(0, 0, 0);
 
 		streaks = createLightspeedStreaks(scene);
-
-		// TEMP DEBUG — remove before commit
-		{
-			const FAR_SPAWN_Z = -1408; // mirrors streaks.ts's private FAR_SPAWN_Z constant
-			const aOffsetAttr = streaks.mesh.geometry.getAttribute('aOffset') as THREE.InstancedBufferAttribute;
-			const arr = aOffsetAttr.array as Float32Array;
-			const count = aOffsetAttr.count;
-			const positiveY: number[] = [];
-			const negativeY: number[] = [];
-			for (let i = 0; i < count && (positiveY.length < 2 || negativeY.length < 2); i++) {
-				const y = arr[i * 3 + 1]!;
-				if (y > 0 && positiveY.length < 2) positiveY.push(i);
-				if (y < 0 && negativeY.length < 2) negativeY.push(i);
-			}
-			camera.updateMatrixWorld();
-			for (const i of [...positiveY, ...negativeY]) {
-				const x = arr[i * 3]!;
-				const y = arr[i * 3 + 1]!;
-				const v = new THREE.Vector3(x, y, FAR_SPAWN_Z);
-				v.project(camera);
-				console.log(`[lightspeed debug] instance ${i} raw(x=${x}, y=${y}, z=${FAR_SPAWN_Z}) -> NDC(x=${v.x}, y=${v.y})`);
-			}
-		}
-		// END TEMP DEBUG
 
 		const ascii = createAsciiRenderer(renderer, scene, camera, false);
 		composer = ascii.composer;
@@ -212,7 +188,9 @@
 			lastFrame = now;
 
 			updatePhase(elapsed, delta);
+			timeline.tick(elapsed);
 			streaks?.update(delta);
+			renderer?.setClearAlpha(backgroundOpacity);
 			composer?.render();
 
 			if (phase !== 'done') frameId = requestAnimationFrame(animateFrame);
@@ -250,20 +228,18 @@
 <div
 	class="lightspeed-intro"
 	style:opacity={!visible ? 0 : overlayOpacity}
-	style:pointer-events={!visible ? 'none' : 'auto'}
+	style:--bg-alpha={backgroundOpacity}
+	style:pointer-events={phase === 'done' ? 'none' : 'auto'}
 	aria-hidden="true"
 >
 	<canvas bind:this={canvasEl} class="lightspeed-canvas"></canvas>
 
-	<div class="progress-bar">
+	<div class="progress-bar" style:opacity={barRetired || phase === 'exiting' || phase === 'done' ? 0 : 1}>
 		<div class="progress-track"></div>
 		<div class="progress-fill" style:width="{displayedProgress * 100}%"></div>
 		<div class="progress-tip" style:left="{displayedProgress * 100}%">▶</div>
 	</div>
 
-	{#if phase === 'exiting' || phase === 'done'}
-		<div class="planet-zoom" style={planetZoomStyle()}></div>
-	{/if}
 </div>
 
 <style>
@@ -272,7 +248,7 @@
 		inset: 0;
 		z-index: 9999;
 		overflow: hidden;
-		background: var(--portfolio-bg);
+		background: rgb(var(--portfolio-bg-rgb) / var(--bg-alpha, 1));
 		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
 		pointer-events: auto;
 		transition: opacity 0.6s ease;
@@ -292,6 +268,7 @@
 		height: 15px;
 		font-family: inherit;
 		pointer-events: none;
+		transition: opacity 0.18s ease;
 	}
 
 	.progress-track,
@@ -320,15 +297,4 @@
 		transform: translate(-50%, -50%);
 	}
 
-	.planet-zoom {
-		position: absolute;
-		left: 50%;
-		top: 50%;
-		width: 4px;
-		height: 4px;
-		border-radius: 50%;
-		background: var(--portfolio-bg);
-		pointer-events: none;
-		transform: translate(-50%, -50%);
-	}
 </style>

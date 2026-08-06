@@ -54,6 +54,7 @@ export function buildHotspots(sphereGroup: THREE.Group, terrainMap: TerrainMap):
 			core,
 			clickMesh,
 			worldPos: new THREE.Vector3(),
+			radius: SPHERE_R,
 			screenX: 0,
 			screenY: 0,
 			hoverMix: 0,

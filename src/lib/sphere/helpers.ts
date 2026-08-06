@@ -107,7 +107,11 @@ export function buildAsciiStars(container: HTMLElement): HTMLElement {
 		const duration = 4 + Math.random() * 4;
 		const delay = Math.random() * 6;
 		const baseOpacity = 0.45 + Math.random() * 0.35;
-		const fontSize = 6 + Math.floor(Math.random() * 5);
+		// Range scaled up by the same factor the desktop ASCII glyph cell size
+		// increased (6 -> 10 CSS px, ~1.67x); was 6-10, now 10-17. This is a
+		// separate DOM-based system from the shader ASCII effect -- CSS pixels
+		// need no pixel-ratio correction of their own.
+		const fontSize = 10 + Math.floor(Math.random() * 8);
 
 		span.textContent = CHARS[Math.floor(Math.random() * CHARS.length)] ?? '*';
 		span.style.cssText = [

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { EffectComposer, RenderPass, EffectPass, Effect, BlendFunction } from 'postprocessing';
-import { ASCII_COLOR } from './constants.js';
+import { ASCII_CELL_SIZE_DESKTOP, ASCII_CELL_SIZE_MOBILE, ASCII_CHARS, ASCII_COLOR } from './constants.js';
+import { viewport } from '../viewport.svelte.js';
 
 const FRAGMENT = /* glsl */`
 uniform sampler2D uCharacters;
@@ -13,6 +14,7 @@ uniform mat4 viewToSphereObject;
 uniform vec3 sphereCenterView;
 uniform vec2 uViewOffset; // NDC-space offset from camera.setViewOffset
 uniform bool uSphereEnabled;
+uniform float uSphereScale;
 
 float hash3(vec3 p) {
   p = fract(p * vec3(443.897, 441.423, 437.195));
@@ -45,10 +47,17 @@ float fbm(vec3 p) {
   return v;
 }
 
+float hash21(vec2 p) {
+  vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
+}
+
 void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
   vec2 cellCount = resolution.xy / uCellSize;
+  vec2 cell = floor(uv * cellCount);
   vec2 cellUV = fract(uv * cellCount);
-  vec2 cellCenter = (floor(uv * cellCount) + 0.5) / cellCount;
+  vec2 cellCenter = (cell + 0.5) / cellCount;
 
   vec4 scene = texture2D(inputBuffer, cellCenter);
   float luminance = dot(scene.rgb, vec3(0.299, 0.587, 0.114));
@@ -79,7 +88,7 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
     // Ray-sphere intersection in view space
     vec3 oc = rayOrigin - sphereCenterView;
     float b2 = dot(oc, rayDir);
-    float c = dot(oc, oc) - 1.0;
+    float c = dot(oc, oc) - uSphereScale * uSphereScale;
     float disc = b2 * b2 - c;
 
     vec3 surfacePoint = vec3(0.0);
@@ -125,10 +134,11 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   float remapped = clamp((luma - 0.05) / (1.0 - 0.05), 0.0, 1.0);
   remapped = clamp(remapped + terrainRampBoost, 0.0, 1.0);
   float charIndex = floor(remapped * (uCharactersCount - 1.0));
+  vec3 glyphColor = uColor;
 
   vec2 atlasUV = vec2((charIndex + cellUV.x) / uCharactersCount, cellUV.y);
   float alpha = texture2D(uCharacters, atlasUV).r;
-  outputColor = vec4(uColor * alpha, alpha);
+  outputColor = vec4(glyphColor * alpha, alpha);
 }
 `;
 
@@ -175,6 +185,7 @@ class ASCIIEffect extends Effect {
 				['sphereCenterView', sphereCenterView],
 				['uViewOffset', new THREE.Uniform(new THREE.Vector2(0, 0))],
 				['uSphereEnabled', new THREE.Uniform(sphereEnabled)],
+				['uSphereScale', new THREE.Uniform(1.0)],
 			]),
 		});
 
@@ -199,6 +210,10 @@ class ASCIIEffect extends Effect {
 	setSphereEnabled(enabled: boolean): void {
 		this.uniforms.get('uSphereEnabled')!.value = enabled;
 	}
+
+	setSphereScale(s: number): void {
+		this.uniforms.get('uSphereScale')!.value = s;
+	}
 }
 
 export function createAsciiRenderer(
@@ -206,10 +221,17 @@ export function createAsciiRenderer(
 	scene: THREE.Scene,
 	camera: THREE.Camera,
 	sphereEnabled: boolean
-): { composer: EffectComposer; dispose(): void; setSphereScreenPos(cx: number, cy: number, r: number): void; setWorldState(viewToSphereObject: THREE.Matrix4, sphereCenterView: THREE.Vector3): void; setViewOffset(ndcX: number, ndcY: number): void; setSphereEnabled(enabled: boolean): void } {
+): { composer: EffectComposer; dispose(): void; setSphereScreenPos(cx: number, cy: number, r: number): void; setWorldState(viewToSphereObject: THREE.Matrix4, sphereCenterView: THREE.Vector3): void; setViewOffset(ndcX: number, ndcY: number): void; setSphereEnabled(enabled: boolean): void; setSphereScale(s: number): void } {
 	const composer = new EffectComposer(renderer);
 	composer.addPass(new RenderPass(scene, camera));
-	const effect = new ASCIIEffect(' .,·:;!|=+xo#%&@██', 6, ASCII_COLOR, sphereEnabled);
+	// ASCII_CELL_SIZE_DESKTOP/MOBILE are tuned in CSS pixels; the shader's
+	// resolution uniform is in device pixels (renderer.getDrawingBufferSize()),
+	// so convert using the renderer's own clamped pixel ratio here -- not a
+	// fresh read of window.devicePixelRatio, which could diverge from what
+	// the renderer was actually configured with at setPixelRatio() time.
+	const cssCellSize = viewport.isDesktop ? ASCII_CELL_SIZE_DESKTOP : ASCII_CELL_SIZE_MOBILE;
+	const cellSize = cssCellSize * renderer.getPixelRatio();
+	const effect = new ASCIIEffect(ASCII_CHARS, cellSize, ASCII_COLOR, sphereEnabled);
 	composer.addPass(new EffectPass(camera, effect));
 
 	return {
@@ -225,6 +247,9 @@ export function createAsciiRenderer(
 		},
 		setSphereEnabled(enabled: boolean): void {
 			effect.setSphereEnabled(enabled);
+		},
+		setSphereScale(s: number): void {
+			effect.setSphereScale(s);
 		},
 		dispose() {
 			composer.dispose();

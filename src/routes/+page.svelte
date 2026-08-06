@@ -1,10 +1,11 @@
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
+	import { onMount } from 'svelte';
+	import { asset } from '$app/paths';
 	import LightspeedIntro from '$lib/components/LightspeedIntro.svelte';
 	import { navItems } from '$lib/portfolio-data.js';
-	import { scrambleText } from '$lib/text-scramble.js';
 	import { initSphere, HOTSPOT_DEFS } from '$lib/sphere.js';
 	import { viewport } from '$lib/viewport.svelte.js';
+	import { timeline } from '$lib/timeline.svelte.js';
 	import { PANEL_GUTTER, PANEL_MAX_W, PANEL_H_GUTTER } from '$lib/panelGeometry.js';
 	import { createDraggablePanel, RESIZE_DIRS } from '$lib/createDraggablePanel.svelte.js';
 	import {
@@ -13,6 +14,7 @@
 		getSkills,
 		getProjects,
 		getExperience,
+		getArt,
 		getContact,
 		getUi,
 		preloadImages,
@@ -32,7 +34,6 @@
 	let loadProgress   = $state(0);
 	let loadingDone    = $state(false);
 	let loadingVisible = $state(true);
-	let welcomeScrambleRun = 0;
 
 	// ── Panel rect (desktop drag/resize) ──────────────────
 	const panel = createDraggablePanel();
@@ -41,6 +42,7 @@
 	let sphereCtl = $state<{
 		setPanelOpen: (o: boolean) => void;
 		focusSection: (id: SectionId | null) => void;
+		setWarpProgress: (p: number) => void;
 	} | null>(null);
 
 	// ── Derived ────────────────────────────────────────────
@@ -55,6 +57,21 @@
 		viewport.init();
 
 		if (!canvasEl) return;
+
+		// loadingDone is page state (drives .main-content fade-in), so it's
+		// a beat here, not intro-local logic. Fires the instant the intro
+		// starts exiting (was on:exit).
+		const disposeExitBeat = timeline.after('exit', 0, 'exit-side-effect', () => {
+			loadingDone = true;
+		});
+
+		// Page becomes interactive 1400ms after exit begins, matching the
+		// intro's own TOTAL_EXIT_MS (was on:done).
+		const disposeDoneBeat = timeline.after('exit', 1400, 'intro-done', () => {
+			setTimeout(() => {
+				loadingVisible = false;
+			}, 400);
+		});
 
 		let controls: Awaited<ReturnType<typeof initSphere>> | undefined;
 		const initTimer = setTimeout(async () => {
@@ -82,6 +99,8 @@
 			controls?.dispose();
 			window.removeEventListener('resize', handleResize);
 			viewport.teardown();
+			disposeExitBeat();
+			disposeDoneBeat();
 		};
 	});
 
@@ -100,32 +119,6 @@
 		} else if (!panelOpen) {
 			skillsAnimated = false;
 		}
-	});
-
-	// ── Welcome decode ─────────────────────────────────────
-	$effect(() => {
-		if (!loadingDone) return;
-		const run = ++welcomeScrambleRun;
-
-		tick().then(() => {
-			if (run !== welcomeScrambleRun) return;
-
-			const targets: [string, number][] = [
-				['.welcome-greeting', 0],
-				['.welcome-name', 150],
-				['.welcome-role', 300],
-			];
-
-			for (const [selector, delay] of targets) {
-				const el = document.querySelector<HTMLElement>(selector);
-				if (el) {
-					scrambleText(el, {
-						delay,
-						shouldContinue: () => run === welcomeScrambleRun
-					});
-				}
-			}
-		});
 	});
 
 	// ── Panel ──────────────────────────────────────────────
@@ -162,7 +155,7 @@
 </script>
 
 <svelte:head>
-	{#each preloadImages as src}
+	{#each preloadImages as src (src)}
 		<link rel="preload" as="image" href={src} />
 	{/each}
 </svelte:head>
@@ -172,20 +165,13 @@
 <LightspeedIntro
 	progress={loadProgress}
 	visible={loadingVisible}
-	on:exit={() => {
-		loadingDone = true;
-	}}
-	on:done={() => {
-		setTimeout(() => {
-			loadingVisible = false;
-		}, 400);
-	}}
+	sphereCtl={sphereCtl}
 />
 
 <div class="main-content" class:loaded={loadingDone}>
 <!-- ── Section nav ──────────────────────────────────── -->
 <nav class="section-nav" aria-label={ui.navAriaLabel}>
-	{#each navItems as item}
+	{#each navItems as item (item)}
 		<button
 			class="section-nav-btn"
 			class:active={currentSection === item}
@@ -207,7 +193,10 @@
 
 <!-- ── Welcome block (left) ─────────────────────────── -->
 {#key lang}
-	<div class="welcome-block" class:panel-open={panelOpen}>
+	<div
+		class="welcome-block"
+		class:panel-open={panelOpen}
+	>
 		<p class="welcome-greeting">{ui.hero.welcomeText}</p>
 		{#if lang === 'ja'}
 			<p class="welcome-name-furigana">{ui.hero.nameFurigana}</p>
@@ -217,7 +206,7 @@
 		<p class="welcome-hint">
 			{ui.hero.hint}
 		</p>
-		<a class="ctrl-btn welcome-cv" href={ui.hero.cvHref} download>{ui.hero.cvLabel}</a>
+		<a class="ctrl-btn welcome-cv" href={asset(ui.hero.cvHref)} download>{ui.hero.cvLabel}</a>
 	</div>
 {/key}
 
@@ -306,7 +295,7 @@
 			</svg>
 		</div>
 
-		{#each RESIZE_DIRS as dir}
+		{#each RESIZE_DIRS as dir (dir)}
 			<div class="resize-handle resize-{dir}" role="presentation" onpointerdown={(e) => panel.onResizeStart(e, dir)}></div>
 		{/each}
 
@@ -339,13 +328,13 @@
 				<h2 class="panel-heading">{c.heading}</h2>
 				<img src="/images/pfp.jpg" alt={ui.profilePhotoAlt} class="about-photo" />
 				<div class="about-body">
-					{#each c.paragraphs as para}
+					{#each c.paragraphs as para, i (i)}
 						<p>{para}</p>
 					{/each}
 				</div>
 				<div class="about-social">
-					{#each c.social as link}
-						<a href={link.url} target="_blank" rel="noopener noreferrer" class="pill">
+					{#each c.social as link (link.url)}
+						<a href={link.url} target="_blank" rel="external noopener noreferrer" class="pill">
 							{link.label}
 						</a>
 					{/each}
@@ -356,7 +345,7 @@
 				{@const c = getSkills(lang)}
 				<p class="panel-eyebrow">{c.label}</p>
 				<h2 class="panel-heading">{c.heading}</h2>
-				{#each c.items as skill}
+				{#each c.items as skill (skill.name)}
 					<div class="skill-row">
 						<div class="skill-row-header">
 							<span class="skill-name">{skill.name}</span>
@@ -376,11 +365,11 @@
 				{@const c = getProjects(lang)}
 				<p class="panel-eyebrow">{c.label}</p>
 				<h2 class="panel-heading">{c.heading}</h2>
-				{#each c.items as project}
+				{#each c.items as project (project.url)}
 					<a
 						href={project.url}
 						target="_blank"
-						rel="noopener noreferrer"
+						rel="external noopener noreferrer"
 						class="project-card"
 					>
 						<img src={project.img} alt={project.title} class="project-img" loading="lazy" />
@@ -388,7 +377,7 @@
 							<div class="project-title">{project.title}</div>
 							<p class="project-desc">{project.desc}</p>
 							<div class="project-tags">
-								{#each project.tags as tag}
+								{#each project.tags as tag, i (i)}
 									<span class="tag">{tag}</span>
 								{/each}
 							</div>
@@ -409,12 +398,19 @@
 				{@const c = getExperience(lang)}
 				<p class="panel-eyebrow">{c.label}</p>
 				<h2 class="panel-heading">{c.heading}</h2>
-				{#each c.items as item}
+				{#each c.items as item (item.title)}
 					<div class="exp-item">
 						<div class="exp-title">{item.title}</div>
 						<p class="exp-desc">{item.desc}</p>
 					</div>
 				{/each}
+
+			<!-- ── Art ───────────────────────────────────── -->
+			{:else if currentSection === 'art'}
+				{@const c = getArt(lang)}
+				<p class="panel-eyebrow">{c.label}</p>
+				<h2 class="panel-heading">{c.heading}</h2>
+				<p class="exp-desc">{c.body}</p>
 
 			<!-- ── Contact ───────────────────────────────── -->
 			{:else if currentSection === 'contact'}
@@ -430,8 +426,8 @@
 					<span class="email-copy-label">{emailCopied ? c.copiedLabel : c.copyLabel}</span>
 				</button>
 				<div class="contact-links">
-					{#each c.links as link}
-						<a href={link.url} target="_blank" rel="noopener noreferrer" class="pill">
+					{#each c.links as link (link.url)}
+						<a href={link.url} target="_blank" rel="external noopener noreferrer" class="pill">
 							{link.label}
 						</a>
 					{/each}
