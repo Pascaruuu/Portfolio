@@ -7,6 +7,14 @@ const metaModules = import.meta.glob<unknown>('./*/meta.json', {
 	import: 'default'
 });
 
+// No `imgSizes` directive is passed, so enhanced-img emits x-descriptor
+// (pixel-density) srcset only, not w-descriptor. A `sizes` attribute on any
+// <enhanced:img> consuming these Picture objects is therefore inert — browsers
+// only consult `sizes` for w-descriptor srcset. The art grid currently renders
+// these thumbnails oversized as a result (see Art.svelte). Fixing it needs a
+// second, thumbnail-sized glob here (this one stays full-size for the future
+// lightbox) — deferred until the lightbox's own size requirements are known,
+// so both can be sized deliberately instead of guessed at separately.
 const imageModules = import.meta.glob<Picture>('./*/*.{png,jpg,jpeg,webp}', {
 	eager: true,
 	query: { enhanced: true },

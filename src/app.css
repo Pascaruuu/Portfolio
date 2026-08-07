@@ -211,6 +211,16 @@ html {
   outline-offset: 2px;
 }
 
+.segmented-control-icon {
+  display: none;
+}
+
+.segmented-control-icon svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
 /* ─── Hotspot Labels ─────────────────────────────────── */
 .hs-label {
   position: fixed;
@@ -469,6 +479,7 @@ html {
 /* ─── Panel Content ──────────────────────────────────── */
 .panel-body {
   padding: 20px 38px 60px;
+  container-type: inline-size;
 }
 
 .panel-eyebrow {
@@ -657,6 +668,122 @@ html {
   line-height: 1.75;
 }
 
+/* ─── Art ────────────────────────────────────────────── */
+.art-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.art-heading-row .panel-heading {
+  margin-bottom: 0;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* Threshold is measured, not a round number — see PHASE 7B report: worst
+   case is the JA heading ("アート") + the 3-segment filter at their real
+   rendered widths, ~330.6px, plus a safety margin for font-substitution
+   variance between Japanese system fonts. This has to be a container query,
+   not @media (--mobile): the panel is user-resizable independently of the
+   viewport (see panelGeometry.ts MIN_W), so a viewport-keyed rule can't see
+   a narrow panel on a wide viewport.
+
+   PHASE 7C: below this same threshold the filter switches to icon-only
+   segments instead of stacking the row. Measured worst case (320px panel
+   minimum, JA heading, desktop padding) leaves ~225px of the ~242px
+   available — the row now survives at the panel's minimum width, so the
+   flex-direction: column fallback this rule used to apply is dead and has
+   been removed.
+
+   PHASE 7D: icon-mode buttons must be square or wider (width >= height).
+   Button height comes from the base .segmented-control-btn min-height,
+   which already differs by breakpoint (36px desktop / 44px mobile — see
+   the @media (--mobile) override below) — that's a viewport-driven touch
+   target rule this phase doesn't change. Padding here is sized per
+   breakpoint to square the icon button against whichever height is
+   active: 10px desktop (16px icon + 20px = 36px), 14px mobile (16px icon
+   + 28px = 44px). Both still leave double-digit slack at the 320px panel
+   floor and the 418px mobile case with the JA heading — see PHASE 7D
+   report. */
+@container (max-width: 350px) {
+  .art-filter .segmented-control-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+  }
+
+  .art-filter .segmented-control-label {
+    display: none;
+  }
+
+  .art-filter .segmented-control-icon {
+    display: block;
+  }
+}
+
+.art-filter {
+  flex: 0 0 auto;
+}
+
+.art-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.art-cell {
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.art-cell:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+}
+.art-cell:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* <picture> defaults to display:inline and has no box of its own to give
+   the img — sizing the img's width:100% through it depends on flex-stretch
+   resolving first, which isn't reliable. Size the picture directly instead. */
+.art-cell picture {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+}
+
+.art-cell-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.art-cell-title {
+  padding: 8px 10px;
+  font-size: 0.72rem;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ─── Contact ────────────────────────────────────────── */
 .email-copy {
   display: flex;
@@ -784,6 +911,15 @@ html {
     padding: 0 13px;
   }
 
+  /* PHASE 7D: icon-mode buttons square against the 44px mobile min-height
+     set just above (16px icon + 28px padding = 44px), not the 36px
+     desktop figure used outside this media block. */
+  @container (max-width: 350px) {
+    .art-filter .segmented-control-btn {
+      padding: 14px;
+    }
+  }
+
   .segmented-control {
     justify-content: flex-start;
     scrollbar-width: none;
@@ -875,6 +1011,15 @@ html {
 
   .project-body {
     padding: 11px 12px 13px;
+  }
+
+  .art-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .art-cell-title {
+    font-size: 0.68rem;
   }
 
   .email-copy {

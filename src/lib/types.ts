@@ -50,7 +50,14 @@ export interface ExperienceContent {
 export interface ArtContent {
 	label: string;
 	heading: string;
-	body: string;
+	filterLabel: string;
+	filters: {
+		all: string;
+		handDrawn: string;
+		digital: string;
+	};
+	emptyAll: string;
+	emptyFiltered: string;
 }
 
 export interface ContactContent {

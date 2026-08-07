@@ -35,7 +35,14 @@ interface LanguageStrings {
 		art: {
 			label: string;
 			heading: string;
-			body: string;
+			filterLabel: string;
+			filters: {
+				all: string;
+				handDrawn: string;
+				digital: string;
+			};
+			emptyAll: string;
+			emptyFiltered: string;
 		};
 		contact: {
 			label: string;
@@ -119,7 +126,14 @@ export const languageStrings: Record<Lang, LanguageStrings> = {
 			art: {
 				label: 'ART',
 				heading: 'Art',
-				body: 'Placeholder text — gallery coming soon.'
+				filterLabel: 'Filter by category',
+				filters: {
+					all: 'All',
+					handDrawn: 'Hand-drawn',
+					digital: 'Digital'
+				},
+				emptyAll: 'No pieces yet.',
+				emptyFiltered: 'No pieces match this filter.'
 			},
 			contact: {
 				label: 'Contact',
@@ -200,7 +214,14 @@ export const languageStrings: Record<Lang, LanguageStrings> = {
 			art: {
 				label: 'アート',
 				heading: 'アート',
-				body: 'プレースホルダーテキスト — ギャラリーは近日公開。'
+				filterLabel: 'カテゴリーで絞り込む',
+				filters: {
+					all: 'すべて',
+					handDrawn: '手描き',
+					digital: 'デジタル'
+				},
+				emptyAll: 'まだ作品がありません。',
+				emptyFiltered: 'この条件に一致する作品はありません。'
 			},
 			contact: {
 				label: '連絡',
