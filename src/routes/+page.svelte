@@ -9,6 +9,8 @@
 	import Experience from '$lib/components/sections/Experience.svelte';
 	import Art from '$lib/components/sections/Art.svelte';
 	import Contact from '$lib/components/sections/Contact.svelte';
+	import ArtLightbox from '$lib/components/ArtLightbox.svelte';
+	import { lightbox } from '$lib/lightbox.svelte.js';
 	import { navItems } from '$lib/portfolio-data.js';
 	import { initSphere, HOTSPOT_DEFS } from '$lib/sphere.js';
 	import { viewport } from '$lib/viewport.svelte.js';
@@ -16,6 +18,7 @@
 	import { PANEL_GUTTER, PANEL_MAX_W, PANEL_H_GUTTER } from '$lib/panelGeometry.js';
 	import { createDraggablePanel, RESIZE_DIRS } from '$lib/createDraggablePanel.svelte.js';
 	import { getLabel, getUi, preloadImages } from '$lib/content.js';
+	import { artPieces, ART_GRID_THUMB_SIZES } from '$lib/content/art/loader.js';
 	import type { SectionId, Lang, HotspotState } from '$lib/types.js';
 
 	// ── State ──────────────────────────────────────────────
@@ -131,9 +134,41 @@
 	{#each preloadImages as src (src)}
 		<link rel="preload" as="image" href={src} />
 	{/each}
+
+	<!-- Art grid thumbnails: full-size images stay lazy (ArtLightbox only
+	     mounts its <enhanced:img> once a piece is opened, see lightbox.svelte.ts),
+	     but the grid's own cell image is worth preloading since the grid is
+	     the first thing the art panel shows. One <link> per format present in
+	     the thumbnail's sources map, in the same order the grid's <picture>
+	     lists its <source> elements: a browser ignores a preload hint whose
+	     `type` it can't decode, so of these several links a browser only acts
+	     on the one format it would also pick from the <picture> element —
+	     exactly one applicable hint, never a wasted avif fetch followed by a
+	     webp download for a browser that can't use avif. imagesizes is the
+	     same ART_GRID_THUMB_SIZES constant the grid's `sizes` attribute uses,
+	     and imagesrcset is read straight off the same Picture object the grid
+	     renders, so neither can drift from what the grid actually requests. -->
+	{#each artPieces as piece (piece.slug)}
+		{@const [thumbnail] = piece.thumbnails}
+		{#if thumbnail}
+			{#each Object.entries(thumbnail.sources) as [format, srcset] (format)}
+				<link
+					rel="preload"
+					as="image"
+					imagesrcset={srcset}
+					imagesizes={ART_GRID_THUMB_SIZES}
+					type={`image/${format}`}
+				/>
+			{/each}
+		{/if}
+	{/each}
 </svelte:head>
 
-<svelte:window onkeydown={(e) => { if (e.key === 'Escape' && panelOpen) closePanel(); }} />
+<svelte:window onkeydown={(e) => {
+	if (e.key !== 'Escape') return;
+	if (lightbox.piece) { lightbox.close(); return; }
+	if (panelOpen) closePanel();
+}} />
 
 <LightspeedIntro
 	progress={loadProgress}
@@ -309,6 +344,15 @@
 		</div>
 	</div>
 {/if}
+
+<!-- ── Art lightbox ──────────────────────────────────── -->
+<!-- Sibling of .popup-card, not a descendant: .panel-body has
+     container-type: inline-size, which implies layout containment and
+     makes it a containing block for position: fixed descendants (per the
+     CSS containment spec). A lightbox mounted inside Art.svelte would be
+     pinned to the panel's box and clipped by .popup-card's overflow
+     instead of covering the viewport — see PHASE 8 report. -->
+<ArtLightbox lang={lang} />
 </div>
 
 <style>
