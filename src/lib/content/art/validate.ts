@@ -2,18 +2,6 @@ import type { ArtCategory } from './types.js';
 
 const CATEGORIES: ArtCategory[] = ['hand-drawn', 'digital'];
 
-export interface ValidatedMeta {
-	title: { en: string | null; ja: string | null };
-	description: { en: string | null; ja: string | null };
-	category: ArtCategory | null;
-	date: string | null;
-	images: string[];
-}
-
-export type ValidationResult =
-	| { skip: true; warnings: string[] }
-	| { skip: false; warnings: string[]; meta: ValidatedMeta };
-
 function isValidDate(value: unknown): value is string {
 	if (typeof value !== 'string') return false;
 
@@ -50,7 +38,19 @@ export function validatePieceMeta(
 	slug: string,
 	rawMeta: unknown,
 	filesInDir: string[]
-): ValidationResult {
+):
+	| { skip: true; warnings: string[] }
+	| {
+			skip: false;
+			warnings: string[];
+			meta: {
+				title: { en: string | null; ja: string | null };
+				description: { en: string | null; ja: string | null };
+				category: ArtCategory | null;
+				date: string | null;
+				images: string[];
+			};
+	  } {
 	const warnings: string[] = [];
 
 	if (rawMeta === null || typeof rawMeta !== 'object') {

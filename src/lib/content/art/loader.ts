@@ -7,19 +7,38 @@ const metaModules = import.meta.glob<unknown>('./*/meta.json', {
 	import: 'default'
 });
 
-// No `imgSizes` directive is passed, so enhanced-img emits x-descriptor
-// (pixel-density) srcset only, not w-descriptor. A `sizes` attribute on any
-// <enhanced:img> consuming these Picture objects is therefore inert — browsers
-// only consult `sizes` for w-descriptor srcset. The art grid currently renders
-// these thumbnails oversized as a result (see Art.svelte). Fixing it needs a
-// second, thumbnail-sized glob here (this one stays full-size for the future
-// lightbox) — deferred until the lightbox's own size requirements are known,
-// so both can be sized deliberately instead of guessed at separately.
+// Two globs feed two different consumers. This one stays full-size and feeds
+// the lightbox, which renders one image at a time at its own intrinsic size.
+// No `imgSizes`/`w` directive is passed, so enhanced-img emits x-descriptor
+// (pixel-density) srcset here — density-only variants are all a single
+// full-bleed image needs.
 const imageModules = import.meta.glob<Picture>('./*/*.{png,jpg,jpeg,webp}', {
 	eager: true,
 	query: { enhanced: true },
 	import: 'default'
 });
+
+// This one feeds the art grid, which renders many cells at a known, fixed
+// size, so it carries an explicit `w` directive — that's what makes
+// enhanced-img emit w-descriptor srcset instead of x-descriptor, which in
+// turn is what makes a `sizes` attribute on the grid's <enhanced:img>
+// meaningful (browsers only consult `sizes` for w-descriptor srcset).
+// 222px is the largest cell the grid ever renders (the single-column tier
+// at the 320px panel floor — see the .art-grid container queries below);
+// the other tiers (180, 179, 150px) are all smaller, so 222/444 covers
+// every tier at 1x/2x device pixel ratio without generating a width per tier.
+const thumbnailModules = import.meta.glob<Picture>('./*/*.{png,jpg,jpeg,webp}', {
+	eager: true,
+	query: { enhanced: true, w: '222;444' },
+	import: 'default'
+});
+
+// Single source of truth for the grid cell width computed above. Consumed by
+// the grid's own `sizes` attribute (Art.svelte) and by the thumbnail
+// preload's `imagesizes` attribute (+page.svelte) — both must read this
+// constant rather than each hardcoding "222px", or the two can silently
+// drift apart and the preload stops being a cache hit.
+export const ART_GRID_THUMB_SIZES = '222px';
 
 function pathParts(path: string): { slug: string; filename: string } {
 	const segments = path.split('/');
@@ -32,6 +51,7 @@ function pathParts(path: string): { slug: string; filename: string } {
 interface Bucket {
 	meta: unknown;
 	files: Map<string, Picture>;
+	thumbnails: Map<string, Picture>;
 }
 
 function collectBuckets(): Map<string, Bucket> {
@@ -40,7 +60,7 @@ function collectBuckets(): Map<string, Bucket> {
 	const bucketFor = (slug: string): Bucket => {
 		let bucket = buckets.get(slug);
 		if (!bucket) {
-			bucket = { meta: null, files: new Map() };
+			bucket = { meta: null, files: new Map(), thumbnails: new Map() };
 			buckets.set(slug, bucket);
 		}
 		return bucket;
@@ -53,6 +73,11 @@ function collectBuckets(): Map<string, Bucket> {
 	for (const [path, picture] of Object.entries(imageModules)) {
 		const { slug, filename } = pathParts(path);
 		bucketFor(slug).files.set(filename, picture);
+	}
+
+	for (const [path, picture] of Object.entries(thumbnailModules)) {
+		const { slug, filename } = pathParts(path);
+		bucketFor(slug).thumbnails.set(filename, picture);
 	}
 
 	return buckets;
@@ -75,13 +100,18 @@ function loadArtPieces(): ArtPiece[] {
 				.map((filename) => bucket.files.get(filename))
 				.filter((picture): picture is Picture => picture !== undefined);
 
+			const thumbnails = result.meta.images
+				.map((filename) => bucket.thumbnails.get(filename))
+				.filter((picture): picture is Picture => picture !== undefined);
+
 			pieces.push({
 				slug,
 				title: result.meta.title,
 				description: result.meta.description,
 				category: result.meta.category,
 				date: result.meta.date,
-				images
+				images,
+				thumbnails
 			});
 		}
 	} catch (error) {
