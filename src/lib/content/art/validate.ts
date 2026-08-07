@@ -15,8 +15,28 @@ export type ValidationResult =
 	| { skip: false; warnings: string[]; meta: ValidatedMeta };
 
 function isValidDate(value: unknown): value is string {
+	if (typeof value !== 'string') return false;
+
+	const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+	if (match === null) return false;
+
+	const yearStr = match[1];
+	const monthStr = match[2];
+	const dayStr = match[3];
+	if (yearStr === undefined || monthStr === undefined || dayStr === undefined) return false;
+
+	const year = Number(yearStr);
+	const month = Number(monthStr);
+	const day = Number(dayStr);
+
+	// Date.UTC silently rolls invalid components over into the next month/year
+	// (e.g. Feb 30 becomes Mar 2) instead of failing, so round-trip the parsed
+	// value and reject anything that didn't land back on the same y/m/d.
+	const parsed = new Date(Date.UTC(year, month - 1, day));
 	return (
-		typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value))
+		parsed.getUTCFullYear() === year &&
+		parsed.getUTCMonth() === month - 1 &&
+		parsed.getUTCDate() === day
 	);
 }
 
@@ -50,6 +70,12 @@ export function validatePieceMeta(
 	if (!filesInDir.includes(firstImage)) {
 		warnings.push(`art/${slug}: first image "${firstImage}" not found on disk — skipped`);
 		return { skip: true, warnings };
+	}
+
+	for (const filename of images.slice(1)) {
+		if (!filesInDir.includes(filename)) {
+			warnings.push(`art/${slug}: image "${filename}" not found on disk — dropped`);
+		}
 	}
 
 	const rawTitle = (raw.title ?? {}) as Record<string, unknown>;
