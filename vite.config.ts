@@ -1,4 +1,5 @@
 import { sveltekit } from '@sveltejs/kit/vite';
+import { enhancedImages } from '@sveltejs/enhanced-img';
 import { defineConfig, type Plugin } from 'vite';
 import postcssCustomMedia from 'postcss-custom-media';
 import { generateBreakpointsCss } from './scripts/generate-breakpoints.mjs';
@@ -16,7 +17,7 @@ function generatedBreakpoints(): Plugin {
 }
 
 export default defineConfig({
-	plugins: [sveltekit(), generatedBreakpoints()],
+	plugins: [enhancedImages(), sveltekit(), generatedBreakpoints()],
 	css: {
 		postcss: {
 			plugins: [postcssCustomMedia()]

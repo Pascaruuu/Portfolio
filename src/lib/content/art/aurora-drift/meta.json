@@ -1,0 +1,10 @@
+{
+	"title": { "en": "Aurora Drift", "ja": "オーロラ・ドリフト" },
+	"description": {
+		"en": "A layered digital gradient study exploring color drift across a wide canvas.",
+		"ja": "広いキャンバスに広がる色彩の変化を探る、レイヤー構成のデジタルグラデーション習作。"
+	},
+	"category": "digital",
+	"date": "2026-03-12",
+	"images": ["gradient.png"]
+}
