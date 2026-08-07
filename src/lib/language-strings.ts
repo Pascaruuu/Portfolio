@@ -43,6 +43,9 @@ interface LanguageStrings {
 			};
 			emptyAll: string;
 			emptyFiltered: string;
+			lightboxCloseLabel: string;
+			imageStripLabel: string;
+			imageLabelTemplate: string;
 		};
 		contact: {
 			label: string;
@@ -133,7 +136,10 @@ export const languageStrings: Record<Lang, LanguageStrings> = {
 					digital: 'Digital'
 				},
 				emptyAll: 'No pieces yet.',
-				emptyFiltered: 'No pieces match this filter.'
+				emptyFiltered: 'No pieces match this filter.',
+				lightboxCloseLabel: 'Close',
+				imageStripLabel: 'More images',
+				imageLabelTemplate: 'Image {n}'
 			},
 			contact: {
 				label: 'Contact',
@@ -221,7 +227,10 @@ export const languageStrings: Record<Lang, LanguageStrings> = {
 					digital: 'デジタル'
 				},
 				emptyAll: 'まだ作品がありません。',
-				emptyFiltered: 'この条件に一致する作品はありません。'
+				emptyFiltered: 'この条件に一致する作品はありません。',
+				lightboxCloseLabel: '閉じる',
+				imageStripLabel: 'その他の画像',
+				imageLabelTemplate: '画像{n}'
 			},
 			contact: {
 				label: '連絡',

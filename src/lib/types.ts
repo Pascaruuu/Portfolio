@@ -58,6 +58,10 @@ export interface ArtContent {
 	};
 	emptyAll: string;
 	emptyFiltered: string;
+	lightboxCloseLabel: string;
+	imageStripLabel: string;
+	/** `{n}` is replaced with the 1-based image index — see ArtLightbox.svelte. */
+	imageLabelTemplate: string;
 }
 
 export interface ContactContent {
