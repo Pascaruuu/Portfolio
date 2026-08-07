@@ -2,8 +2,9 @@
 	import { getArt } from '$lib/content.js';
 	import type { Lang } from '$lib/types.js';
 	import type { ArtCategory } from '$lib/content/art/types.js';
-	import { artPieces } from '$lib/content/art/loader.js';
+	import { artPieces, ART_GRID_THUMB_SIZES } from '$lib/content/art/loader.js';
 	import SegmentedControl from '$lib/components/SegmentedControl.svelte';
+	import { lightbox } from '$lib/lightbox.svelte.js';
 
 	let { lang }: { lang: Lang } = $props();
 
@@ -76,12 +77,20 @@
 {:else}
 	<div class="art-grid">
 		{#each filteredPieces as piece (piece.slug)}
-			{@const [thumbnail] = piece.images}
+			{@const [thumbnail] = piece.thumbnails}
 			{#if thumbnail}
-				<button class="art-cell" onclick={() => {}}>
-					<enhanced:img class="art-cell-img" src={thumbnail} alt="" />
-					<span class="art-cell-title">{piece.title[lang] ?? '—'}</span>
-				</button>
+				<div class="art-cell-wrap">
+					{#if piece.images.length > 1}
+						<span class="art-cell-edge layer-1" aria-hidden="true"></span>
+					{/if}
+					<button
+						class="art-cell"
+						onclick={(e) => lightbox.open(piece, e.currentTarget as HTMLElement)}
+					>
+						<enhanced:img class="art-cell-img" src={thumbnail} alt="" sizes={ART_GRID_THUMB_SIZES} />
+						<span class="art-cell-title">{piece.title[lang] ?? '—'}</span>
+					</button>
+				</div>
 			{/if}
 		{/each}
 	</div>
