@@ -2,23 +2,20 @@
 	import { onMount } from 'svelte';
 	import { asset } from '$app/paths';
 	import LightspeedIntro from '$lib/components/LightspeedIntro.svelte';
+	import SegmentedControl from '$lib/components/SegmentedControl.svelte';
+	import About from '$lib/components/sections/About.svelte';
+	import Skills from '$lib/components/sections/Skills.svelte';
+	import Projects from '$lib/components/sections/Projects.svelte';
+	import Experience from '$lib/components/sections/Experience.svelte';
+	import Art from '$lib/components/sections/Art.svelte';
+	import Contact from '$lib/components/sections/Contact.svelte';
 	import { navItems } from '$lib/portfolio-data.js';
 	import { initSphere, HOTSPOT_DEFS } from '$lib/sphere.js';
 	import { viewport } from '$lib/viewport.svelte.js';
 	import { timeline } from '$lib/timeline.svelte.js';
 	import { PANEL_GUTTER, PANEL_MAX_W, PANEL_H_GUTTER } from '$lib/panelGeometry.js';
 	import { createDraggablePanel, RESIZE_DIRS } from '$lib/createDraggablePanel.svelte.js';
-	import {
-		getLabel,
-		getAbout,
-		getSkills,
-		getProjects,
-		getExperience,
-		getArt,
-		getContact,
-		getUi,
-		preloadImages,
-	} from '$lib/content.js';
+	import { getLabel, getUi, preloadImages } from '$lib/content.js';
 	import type { SectionId, Lang, HotspotState } from '$lib/types.js';
 
 	// ── State ──────────────────────────────────────────────
@@ -30,7 +27,6 @@
 	let isDragging     = $state(false);
 	let isHovering     = $state(false);
 	let hotspotStates  = $state<HotspotState[]>([]);
-	let skillsAnimated = $state(false);
 	let loadProgress   = $state(0);
 	let loadingDone    = $state(false);
 	let loadingVisible = $state(true);
@@ -107,20 +103,6 @@
 	// ── Sync panel state to sphere ────────────────────────
 	$effect(() => { sphereCtl?.setPanelOpen(panelOpen); });
 
-	// ── Skill bar animation ────────────────────────────────
-	$effect(() => {
-		if (currentSection === 'skills' && panelOpen) {
-			skillsAnimated = false;
-			requestAnimationFrame(() => {
-				requestAnimationFrame(() => {
-					skillsAnimated = true;
-				});
-			});
-		} else if (!panelOpen) {
-			skillsAnimated = false;
-		}
-	});
-
 	// ── Panel ──────────────────────────────────────────────
 	function openPanel(id: SectionId): void {
 		sphereCtl?.focusSection(id);
@@ -143,15 +125,6 @@
 	function toggleLang(): void {
 		lang = lang === 'en' ? 'ja' : 'en';
 	}
-
-	// ── Contact email copy ─────────────────────────────────
-	let emailCopied = $state(false);
-	function copyEmail(email: string): void {
-		navigator.clipboard.writeText(email).then(() => {
-			emailCopied = true;
-			setTimeout(() => { emailCopied = false; }, 2000);
-		});
-	}
 </script>
 
 <svelte:head>
@@ -170,17 +143,15 @@
 
 <div class="main-content" class:loaded={loadingDone}>
 <!-- ── Section nav ──────────────────────────────────── -->
-<nav class="section-nav" aria-label={ui.navAriaLabel}>
-	{#each navItems as item (item)}
-		<button
-			class="section-nav-btn"
-			class:active={currentSection === item}
-			aria-current={currentSection === item ? 'page' : undefined}
-			onclick={() => openPanel(item)}
-		>
-			{lang === 'en' ? getLabel(item, lang).toUpperCase() : getLabel(item, lang)}
-		</button>
-	{/each}
+<nav class="section-nav segmented-control" aria-label={ui.navAriaLabel}>
+	<SegmentedControl
+		items={navItems}
+		itemKey={(item) => item}
+		itemLabel={(item) => (lang === 'en' ? getLabel(item, lang).toUpperCase() : getLabel(item, lang))}
+		activeItem={currentSection}
+		onSelect={openPanel}
+		ariaCurrentOnActive={true}
+	/>
 </nav>
 
 <!-- ── WebGL canvas ──────────────────────────────────── -->
@@ -321,117 +292,18 @@
 
 		<div class="panel-body">
 
-			<!-- ── About ─────────────────────────────────── -->
 			{#if currentSection === 'about'}
-				{@const c = getAbout(lang)}
-				<p class="panel-eyebrow">{c.label}</p>
-				<h2 class="panel-heading">{c.heading}</h2>
-				<img src="/images/pfp.jpg" alt={ui.profilePhotoAlt} class="about-photo" />
-				<div class="about-body">
-					{#each c.paragraphs as para, i (i)}
-						<p>{para}</p>
-					{/each}
-				</div>
-				<div class="about-social">
-					{#each c.social as link (link.url)}
-						<a href={link.url} target="_blank" rel="external noopener noreferrer" class="pill">
-							{link.label}
-						</a>
-					{/each}
-				</div>
-
-			<!-- ── Skills ────────────────────────────────── -->
+				<About lang={lang} />
 			{:else if currentSection === 'skills'}
-				{@const c = getSkills(lang)}
-				<p class="panel-eyebrow">{c.label}</p>
-				<h2 class="panel-heading">{c.heading}</h2>
-				{#each c.items as skill (skill.name)}
-					<div class="skill-row">
-						<div class="skill-row-header">
-							<span class="skill-name">{skill.name}</span>
-							<span class="skill-pct">{skill.pct}%</span>
-						</div>
-						<div class="skill-track">
-							<div
-								class="skill-fill"
-								style:width={skillsAnimated ? `${skill.pct}%` : '0%'}
-							></div>
-						</div>
-					</div>
-				{/each}
-
-			<!-- ── Projects ──────────────────────────────── -->
+				<Skills lang={lang} />
 			{:else if currentSection === 'projects'}
-				{@const c = getProjects(lang)}
-				<p class="panel-eyebrow">{c.label}</p>
-				<h2 class="panel-heading">{c.heading}</h2>
-				{#each c.items as project (project.url)}
-					<a
-						href={project.url}
-						target="_blank"
-						rel="external noopener noreferrer"
-						class="project-card"
-					>
-						<img src={project.img} alt={project.title} class="project-img" loading="lazy" />
-						<div class="project-body">
-							<div class="project-title">{project.title}</div>
-							<p class="project-desc">{project.desc}</p>
-							<div class="project-tags">
-								{#each project.tags as tag, i (i)}
-									<span class="tag">{tag}</span>
-								{/each}
-							</div>
-						</div>
-					</a>
-				{/each}
-				<a
-					href="https://github.com/Pascaruuu?tab=repositories"
-					target="_blank"
-					rel="noopener noreferrer"
-					class="view-all"
-				>
-					{c.viewAll}
-				</a>
-
-			<!-- ── Experience ────────────────────────────── -->
+				<Projects lang={lang} />
 			{:else if currentSection === 'experience'}
-				{@const c = getExperience(lang)}
-				<p class="panel-eyebrow">{c.label}</p>
-				<h2 class="panel-heading">{c.heading}</h2>
-				{#each c.items as item (item.title)}
-					<div class="exp-item">
-						<div class="exp-title">{item.title}</div>
-						<p class="exp-desc">{item.desc}</p>
-					</div>
-				{/each}
-
-			<!-- ── Art ───────────────────────────────────── -->
+				<Experience lang={lang} />
 			{:else if currentSection === 'art'}
-				{@const c = getArt(lang)}
-				<p class="panel-eyebrow">{c.label}</p>
-				<h2 class="panel-heading">{c.heading}</h2>
-				<p class="exp-desc">{c.body}</p>
-
-			<!-- ── Contact ───────────────────────────────── -->
+				<Art lang={lang} />
 			{:else if currentSection === 'contact'}
-				{@const c = getContact(lang)}
-				<p class="panel-eyebrow">{c.label}</p>
-				<h2 class="panel-heading">{c.heading}</h2>
-				<button
-					class="email-copy"
-					onclick={() => copyEmail(c.email)}
-					aria-label={c.copyLabel}
-				>
-					<span class="email-address">{c.email}</span>
-					<span class="email-copy-label">{emailCopied ? c.copiedLabel : c.copyLabel}</span>
-				</button>
-				<div class="contact-links">
-					{#each c.links as link (link.url)}
-						<a href={link.url} target="_blank" rel="external noopener noreferrer" class="pill">
-							{link.label}
-						</a>
-					{/each}
-				</div>
+				<Contact lang={lang} />
 			{/if}
 
 		</div>
@@ -452,55 +324,6 @@
 		pointer-events: auto;
 	}
 
-	.section-nav {
-		position: fixed;
-		top: 22px;
-		left: 50%;
-		z-index: 40;
-		display: flex;
-		align-items: center;
-		gap: 2px;
-		max-width: calc(100vw - 32px);
-		padding: 5px;
-		overflow-x: auto;
-		background: var(--nav-bg);
-		border: 1px solid var(--nav-border);
-		border-radius: 999px;
-		backdrop-filter: blur(16px);
-		-webkit-backdrop-filter: blur(16px);
-		transform: translateX(-50%);
-	}
-
-	.section-nav-btn {
-		flex: 0 0 auto;
-		min-height: 36px;
-		border: 0;
-		border-radius: 999px;
-		background: transparent;
-		color: var(--muted);
-		cursor: pointer;
-		font: inherit;
-		font-size: 0.7rem;
-		font-weight: 500;
-		letter-spacing: 0.12em;
-		line-height: 1;
-		padding: 11px 14px;
-		transition:
-			background 0.2s,
-			color 0.2s;
-	}
-
-	.section-nav-btn:hover,
-	.section-nav-btn.active {
-		background: var(--nav-active-bg);
-		color: var(--text);
-	}
-
-	.section-nav-btn:focus-visible {
-		outline: 1px solid var(--accent);
-		outline-offset: 2px;
-	}
-
 	.welcome-name-furigana {
 		font-size: 0.95rem;
 		letter-spacing: 0.16em;
@@ -512,26 +335,5 @@
 
 	.welcome-name {
 		white-space: nowrap;
-	}
-
-	@media (max-width: 640px) {
-		.section-nav {
-			top: auto;
-			bottom: max(12px, env(safe-area-inset-bottom));
-			width: calc(100vw - 24px);
-			justify-content: flex-start;
-			z-index: 45;
-			scrollbar-width: none;
-		}
-
-		.section-nav::-webkit-scrollbar {
-			display: none;
-		}
-
-		.section-nav-btn {
-			font-size: 0.62rem;
-			min-height: 44px;
-			padding: 0 13px;
-		}
 	}
 </style>

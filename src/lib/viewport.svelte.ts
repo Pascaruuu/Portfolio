@@ -2,6 +2,16 @@
 export const BP_DESKTOP = 760;
 
 /**
+ * Width below which the welcome block switches to its mobile (stacked)
+ * position and child sizing. CSS-only — it does NOT feed viewport.isDesktop
+ * or any other TypeScript-side reactive value; it exists solely to be
+ * compiled into CSS. Intentionally wider than BP_DESKTOP (760): the welcome
+ * block stacks earlier than the rest of the mobile layout, which stays on
+ * BP_DESKTOP.
+ */
+export const BP_WELCOME_STACK = 1200;
+
+/**
  * Below this viewport height, the camera zooms out (compact camera profile).
  * CSS layout compaction is a separate, stricter tier at 640px height
  * (see app.css). 641-680px = camera compact only, by design — do not unify.
