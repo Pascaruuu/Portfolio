@@ -1,0 +1,10 @@
+{
+	"title": { "en": "Mr. Treuvey", "ja": "トルーヴェイ先生" },
+	"description": {
+		"en": "A pencil portrait of my economic and social sciences professor, Mr. Treuvey.",
+		"ja": "経済社会科の先生、トルーヴェイ先生を描いた鉛筆画。"
+	},
+	"category": "hand-drawn",
+	"date": "2020-06-14",
+	"images": ["mr-treuvey.jpg"]
+}
