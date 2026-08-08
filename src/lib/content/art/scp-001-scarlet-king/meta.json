@@ -1,0 +1,10 @@
+{
+	"title": { "en": "SCP-001 Scarlet King", "ja": "SCP-001 スカーレットキング" },
+	"description": {
+		"en": "A karuta-style commission of SCP-001, \"The Scarlet King,\" rendered as a writhing, crimson-eyed eldritch mass. The card is illustrated on an Ainz Ooal Gown (Overlord) template, but karuta cards keep the original character's name regardless of what's drawn on them.",
+		"ja": "SCP-001「スカーレットキング」を描いたカルタ風の依頼イラスト。深紅の目を持つ、うごめく異形の姿で表現されている。カード自体は『オーバーロード』のアインズ・ウール・ゴウン柄で描かれているが、カルタでは描かれた絵に関わらず本来のキャラクター名を保持する。"
+	},
+	"category": "digital",
+	"date": "2023-11-07",
+	"images": ["scp-001-scarlet-king.png"]
+}
