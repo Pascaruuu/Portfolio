@@ -17,8 +17,10 @@
 	import { timeline } from '$lib/timeline.svelte.js';
 	import { PANEL_GUTTER, PANEL_MAX_W, PANEL_H_GUTTER } from '$lib/panelGeometry.js';
 	import { createDraggablePanel, RESIZE_DIRS } from '$lib/createDraggablePanel.svelte.js';
-	import { getLabel, getUi, preloadImages } from '$lib/content.js';
+	import { getLabel, getHeading, getArt, getUi, preloadImages } from '$lib/content.js';
 	import { artPieces, ART_GRID_THUMB_SIZES } from '$lib/content/art/loader.js';
+	import { artFilter, type ArtFilter } from '$lib/artFilter.svelte.js';
+	import { panelScrollFade } from '$lib/actions/panelScrollFade.js';
 	import type { SectionId, Lang, HotspotState } from '$lib/types.js';
 
 	// ── State ──────────────────────────────────────────────
@@ -46,6 +48,16 @@
 
 	// ── Derived ────────────────────────────────────────────
 	const ui = $derived(getUi(lang));
+	const artContent = $derived(getArt(lang));
+
+	// ── Art filter (header control; Art.svelte reads the result) ──
+	const artFilterOptions: ArtFilter[] = ['all', 'hand-drawn', 'digital'];
+
+	function artFilterLabel(filter: ArtFilter): string {
+		if (filter === 'all') return artContent.filters.all;
+		if (filter === 'hand-drawn') return artContent.filters.handDrawn;
+		return artContent.filters.digital;
+	}
 
 	$effect(() => {
 		document.documentElement.lang = lang;
@@ -271,6 +283,29 @@
 	</svg>
 {/if}
 
+{#snippet artFilterIcon(filter: ArtFilter)}
+	{#if filter === 'all'}
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+			stroke-linecap="round" stroke-linejoin="round">
+			<rect x="3" y="3" width="7" height="7" />
+			<rect x="14" y="3" width="7" height="7" />
+			<rect x="14" y="14" width="7" height="7" />
+			<rect x="3" y="14" width="7" height="7" />
+		</svg>
+	{:else if filter === 'hand-drawn'}
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+			stroke-linecap="round" stroke-linejoin="round">
+			<path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+		</svg>
+	{:else}
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+			stroke-linecap="round" stroke-linejoin="round">
+			<rect x="4" y="2" width="16" height="20" rx="2" />
+			<line x1="12" y1="18" x2="12.01" y2="18" />
+		</svg>
+	{/if}
+{/snippet}
+
 <!-- ── Popup card ─────────────────────────────────────── -->
 {#if panelOpen}
 	<div
@@ -316,31 +351,53 @@
 					{/if}
 				</svg>
 			</button>
-			<button class="panel-close" onclick={closePanel} aria-label={ui.closePanelLabel}>
-				<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor"
-					fill="none" stroke-width="2" stroke-linecap="round">
-					<line x1="18" y1="6"  x2="6"  y2="18" />
-					<line x1="6"  y1="6"  x2="18" y2="18" />
-				</svg>
-			</button>
+			<div class="popup-header-row">
+				{#if currentSection}
+					<div class="panel-heading-block">
+						<p class="panel-eyebrow">{getLabel(currentSection, lang)}</p>
+						<h2 class="panel-heading">{getHeading(currentSection, lang)}</h2>
+					</div>
+				{/if}
+				<button class="panel-close" onclick={closePanel} aria-label={ui.closePanelLabel}>
+					<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor"
+						fill="none" stroke-width="2" stroke-linecap="round">
+						<line x1="18" y1="6"  x2="6"  y2="18" />
+						<line x1="6"  y1="6"  x2="18" y2="18" />
+					</svg>
+				</button>
+			</div>
+			{#if currentSection === 'art' && artPieces.length > 0}
+				<div class="art-filter segmented-control" role="group" aria-label={artContent.filterLabel}>
+					<SegmentedControl
+						items={artFilterOptions}
+						itemKey={(item) => item}
+						itemLabel={artFilterLabel}
+						itemIcon={artFilterIcon}
+						activeItem={artFilter.selected}
+						onSelect={(item) => artFilter.select(item)}
+					/>
+				</div>
+			{/if}
 		</div>
 
-		<div class="panel-body">
+		<div class="panel-body" use:panelScrollFade>
+			<div class="panel-body-content">
 
-			{#if currentSection === 'about'}
-				<About lang={lang} />
-			{:else if currentSection === 'skills'}
-				<Skills lang={lang} />
-			{:else if currentSection === 'projects'}
-				<Projects lang={lang} />
-			{:else if currentSection === 'experience'}
-				<Experience lang={lang} />
-			{:else if currentSection === 'art'}
-				<Art lang={lang} />
-			{:else if currentSection === 'contact'}
-				<Contact lang={lang} />
-			{/if}
+				{#if currentSection === 'about'}
+					<About lang={lang} />
+				{:else if currentSection === 'skills'}
+					<Skills lang={lang} />
+				{:else if currentSection === 'projects'}
+					<Projects lang={lang} />
+				{:else if currentSection === 'experience'}
+					<Experience lang={lang} />
+				{:else if currentSection === 'art'}
+					<Art lang={lang} />
+				{:else if currentSection === 'contact'}
+					<Contact lang={lang} />
+				{/if}
 
+			</div>
 		</div>
 	</div>
 {/if}

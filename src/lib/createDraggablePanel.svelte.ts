@@ -1,5 +1,5 @@
 import { viewport } from './viewport.svelte.js';
-import { PANEL_GUTTER, PANEL_MAX_W, PANEL_H_GUTTER, MIN_W, MIN_H } from './panelGeometry.js';
+import { PANEL_GUTTER, PANEL_MAX_W, PANEL_H_GUTTER, PANEL_DEFAULT_H_VH, MIN_W, MIN_H } from './panelGeometry.js';
 
 export const RESIZE_DIRS = ['n', 's', 'e', 'w', 'nw', 'ne', 'sw', 'se'] as const;
 export type ResizeDir = typeof RESIZE_DIRS[number];
@@ -33,8 +33,12 @@ export function createDraggablePanel() {
 		requestAnimationFrame(() => {
 			if (!el) return;
 			const measuredH = el.getBoundingClientRect().height;
-			h = measuredH;
-			y = Math.max(0, (viewport.vh - measuredH) / 2);
+			// Cap tall content at the default target (panel-body scrolls the
+			// rest); shorter content keeps its own natural height rather than
+			// being stretched up to fill the target.
+			const targetH = Math.min(viewport.vh * PANEL_DEFAULT_H_VH, viewport.vh - PANEL_GUTTER * 2);
+			h = Math.min(measuredH, targetH);
+			y = Math.max(0, (viewport.vh - h) / 2);
 		});
 	}
 

@@ -6,7 +6,7 @@ export const HOTSPOT_DEFS: HotspotDef[] = [
 	{ id: 'skills',     lat:  -2, lon: 108 },
 	{ id: 'projects',   lat: -44, lon: 260 },
 	{ id: 'experience', lat:  50, lon: 204 },
-	{ id: 'art',        lat:  80, lon: 350 },
+	{ id: 'art',        lat:  60, lon: 340 },
 	{ id: 'contact',    lat:  -4, lon: 378 },
 ];
 

@@ -7,8 +7,6 @@
 	const c = $derived(getProjects(lang));
 </script>
 
-<p class="panel-eyebrow">{c.label}</p>
-<h2 class="panel-heading">{c.heading}</h2>
 {#each c.items as project (project.url)}
 	<a
 		href={project.url}

@@ -7,8 +7,6 @@
 	const c = $derived(getExperience(lang));
 </script>
 
-<p class="panel-eyebrow">{c.label}</p>
-<h2 class="panel-heading">{c.heading}</h2>
 {#each c.items as item (item.title)}
 	<div class="exp-item">
 		<div class="exp-title">{item.title}</div>

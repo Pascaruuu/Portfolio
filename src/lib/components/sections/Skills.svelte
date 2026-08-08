@@ -21,8 +21,6 @@
 	});
 </script>
 
-<p class="panel-eyebrow">{c.label}</p>
-<h2 class="panel-heading">{c.heading}</h2>
 {#each c.items as skill (skill.name)}
 	<div class="skill-row">
 		<div class="skill-row-header">

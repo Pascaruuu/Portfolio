@@ -8,8 +8,6 @@
 	const ui = $derived(getUi(lang));
 </script>
 
-<p class="panel-eyebrow">{c.label}</p>
-<h2 class="panel-heading">{c.heading}</h2>
 <img src="/images/pfp.jpg" alt={ui.profilePhotoAlt} class="about-photo" />
 <div class="about-body">
 	{#each c.paragraphs as para, i (i)}

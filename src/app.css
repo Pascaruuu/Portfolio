@@ -28,7 +28,7 @@
 
   /* Panel geometry: mirrors PANEL_GUTTER / PANEL_MAX_W in src/lib/panelGeometry.ts — keep in sync */
   --panel-gutter: 48px;
-  --panel-max-w: 700px;
+  --panel-max-w: 900px;
 }
 
 /* ─── Reset & Base ───────────────────────────────────── */
@@ -332,10 +332,8 @@ html {
   border: 1px solid var(--border-strong);
   border-radius: 14px;
   z-index: 30;
-  overflow-x: hidden;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
+  display: flex;
+  flex-direction: column;
   animation: popup-in 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
@@ -358,10 +356,6 @@ html {
   to   { opacity: 1; scale: 1; }
 }
 
-.popup-card::-webkit-scrollbar       { width: 3px; }
-.popup-card::-webkit-scrollbar-track { background: transparent; }
-.popup-card::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
 .popup-card.panel-fullscreen {
   position: fixed;
   inset: 0;
@@ -372,10 +366,20 @@ html {
   z-index: 50;
 }
 
+/* .panel-body's and .popup-header's own corner radii (below) must not
+   show through once the card itself goes square in fullscreen. */
+.popup-card.panel-fullscreen .panel-body {
+  border-radius: 0;
+}
+
+.popup-card.panel-fullscreen .popup-header {
+  border-radius: 0;
+}
+
 /* ─── Panel drag handle ──────────────────────────────── */
 .panel-drag-handle {
   position: absolute;
-  left: -1px;
+  left: 0;
   top: 50%;
   transform: translateY(-50%);
   width: 20px;
@@ -384,12 +388,16 @@ html {
   align-items: center;
   justify-content: center;
   background: var(--panel-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: 4px 0 0 4px;
+  border-top: 1px solid var(--border-strong);
+  border-right: 1px solid var(--border-strong);
+  border-bottom: 1px solid var(--border-strong);
+  border-left: none;
+  border-radius: 0 4px 4px 0;
   color: var(--muted);
   cursor: grab;
-  z-index: 2;
+  z-index: 11;
   user-select: none;
+  touch-action: none;
 }
 
 .panel-drag-handle:active {
@@ -403,19 +411,33 @@ html {
 }
 
 /* ─── Panel resize handles ───────────────────────────── */
+/* Handles grow outward into the gutter (--panel-gutter: 48px), not inward
+   over content, so they don't steal pointer events from .panel-body's
+   scrollbar (3px wide) or its content. Edge inset (2px) is re-derived from
+   the corner size so corners and edges tile the perimeter exactly: inset =
+   CORNER (24px) - corner outward offset (22px) = 2px, matching the edges'
+   own 2px inward reach — no gap, no double-coverage.
+   Stacking is explicit, not order-dependent: edges (9) < corners (10) <
+   .panel-drag-handle (11), so corners always win where they'd meet an edge,
+   and the drag handle always wins over .resize-w on the left edge. */
 .resize-handle {
   position: absolute;
-  z-index: 10;
+  z-index: 9;
+  touch-action: none;
 }
 
-.resize-n  { top: -4px;    left: 8px;  right: 8px;  height: 8px; cursor: ns-resize; }
-.resize-s  { bottom: -4px; left: 8px;  right: 8px;  height: 8px; cursor: ns-resize; }
-.resize-w  { left: -4px;   top: 8px;   bottom: 8px; width: 8px;  cursor: ew-resize; }
-.resize-e  { right: -4px;  top: 8px;   bottom: 8px; width: 8px;  cursor: ew-resize; }
-.resize-nw { top: -4px;    left: -4px;  width: 12px; height: 12px; cursor: nw-resize; }
-.resize-ne { top: -4px;    right: -4px; width: 12px; height: 12px; cursor: ne-resize; }
-.resize-sw { bottom: -4px; left: -4px;  width: 12px; height: 12px; cursor: sw-resize; }
-.resize-se { bottom: -4px; right: -4px; width: 12px; height: 12px; cursor: se-resize; }
+.resize-n  { top: -12px;    left: 2px;  right: 2px;  height: 14px; cursor: ns-resize; }
+.resize-s  { bottom: -12px; left: 2px;  right: 2px;  height: 14px; cursor: ns-resize; }
+.resize-w  { left: -12px;   top: 2px;   bottom: 2px; width: 14px;  cursor: ew-resize; }
+.resize-e  { right: -12px;  top: 2px;   bottom: 2px; width: 14px;  cursor: ew-resize; }
+.resize-nw { top: -22px;    left: -22px;  width: 24px; height: 24px; cursor: nw-resize; }
+.resize-ne { top: -22px;    right: -22px; width: 24px; height: 24px; cursor: ne-resize; }
+.resize-sw { bottom: -22px; left: -22px;  width: 24px; height: 24px; cursor: sw-resize; }
+.resize-se { bottom: -22px; right: -22px; width: 24px; height: 24px; cursor: se-resize; }
+
+.resize-nw, .resize-ne, .resize-sw, .resize-se {
+  z-index: 10;
+}
 
 @media (--mobile) {
   .resize-handle {
@@ -424,15 +446,42 @@ html {
 }
 
 /* ─── Popup Header ───────────────────────────────────── */
+/* Inline padding matches .panel-body's (below) so the heading's left edge
+   stays aligned with the body content's left edge — PHASE 6: do not change
+   this independently of .panel-body's own inline padding.
+   Block-start is intentionally larger than .panel-body's matching PHASE 4
+   value (20px/4px) — that value left the eyebrow sitting flush against the
+   panel's top border; PHASE 6 doubled it for real clearance instead.
+   Block-end is the header's own, sized for its own trailing whitespace, not
+   copied from the body's 60px (that value exists for the scrollable
+   content's bottom clearance, not the header).
+   container-type: inline-size gives .art-filter (PHASE 4: moved in from the
+   body for the art section) a panel-width-relative @container context of
+   its own, now that it's no longer a descendant of .panel-body. Checked: no
+   descendant of .popup-header is position:fixed, so this doesn't create an
+   unwanted containing block the way it would have for the lightbox (see the
+   PHASE 8 comment on <ArtLightbox> in +page.svelte). */
 .popup-header {
-  position: sticky;
-  top: 0;
+  position: relative;
   display: flex;
-  justify-content: flex-end;
-  padding: 16px 16px 0;
+  flex-direction: column;
+  padding: 40px 38px 16px;
   z-index: 1;
   background: var(--panel-bg);
   border-radius: 14px 14px 0 0;
+  flex-shrink: 0;
+  container-type: inline-size;
+}
+
+.popup-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.panel-heading-block {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .panel-close {
@@ -477,10 +526,79 @@ html {
 }
 
 /* ─── Panel Content ──────────────────────────────────── */
+/* PHASE 6: scroll fades. --panel-fade-top/-bottom are registered below as
+   animatable <length> custom properties so transitioning them smoothly
+   grows/shrinks the mask's fade zone (a bare custom property would just
+   jump — mask-image gradients aren't themselves interpolable across
+   browsers, but the length feeding this one gradient's stops is).
+   mask-image (not an overlay element) is deliberate: .panel-body has no
+   background of its own, so masking its content to transparent reveals
+   .popup-card's real background — var(--panel-bg) — underneath, with no
+   extra element needed. This also sidesteps var(--panel-bg)'s own
+   translucency (color-mix ... 94%, transparent, see :root): an overlay
+   painted with that color on top of content would compound with the
+   .popup-card background already behind it, permanently letting ~6% of an
+   opaque art-grid cell bleed through even at the fade's "solid" stop.
+   Masking content to alpha 0 has no such floor — it hides fully regardless
+   of --panel-bg's own alpha. Because it's the same element's own
+   mask/paint, it also inherits .panel-body's existing overflow-clipped
+   border-radius (0 0 14px 14px normally, 0 in fullscreen, see below) and
+   its existing paint order below .popup-header for free — no separate
+   z-index or radius handling needed. */
+@property --panel-fade-top {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 0px;
+}
+
+@property --panel-fade-bottom {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 0px;
+}
+
 .panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border-radius: 0 0 14px 14px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
   padding: 20px 38px 60px;
   container-type: inline-size;
+  --panel-fade-size: 32px;
+  --panel-fade-top: 0px;
+  --panel-fade-bottom: 0px;
+  mask-image: linear-gradient(to bottom,
+    transparent 0,
+    black var(--panel-fade-top),
+    black calc(100% - var(--panel-fade-bottom)),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(to bottom,
+    transparent 0,
+    black var(--panel-fade-top),
+    black calc(100% - var(--panel-fade-bottom)),
+    transparent 100%
+  );
+  transition: --panel-fade-top 0.2s ease, --panel-fade-bottom 0.2s ease;
 }
+
+/* use:panelScrollFade (src/lib/actions/panelScrollFade.ts) toggles these
+   from scroll position + a ResizeObserver on the container and its
+   .panel-body-content child — see that file for why both are watched. */
+.panel-body.panel-fade-top {
+  --panel-fade-top: var(--panel-fade-size);
+}
+
+.panel-body.panel-fade-bottom {
+  --panel-fade-bottom: var(--panel-fade-size);
+}
+
+.panel-body::-webkit-scrollbar       { width: 3px; }
+.panel-body::-webkit-scrollbar-track { background: transparent; }
+.panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
 .panel-eyebrow {
   font-size: 0.65rem;
@@ -496,7 +614,7 @@ html {
   font-weight: 600;
   color: var(--text);
   line-height: 1.2;
-  margin-bottom: 28px;
+  overflow-wrap: break-word;
 }
 
 /* ─── Shared: Pill ───────────────────────────────────── */
@@ -669,20 +787,6 @@ html {
 }
 
 /* ─── Art ────────────────────────────────────────────── */
-.art-heading-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-.art-heading-row .panel-heading {
-  margin-bottom: 0;
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
 /* Threshold is measured, not a round number — see PHASE 7B report: worst
    case is the JA heading ("アート") + the 3-segment filter at their real
    rendered widths, ~330.6px, plus a safety margin for font-substitution
@@ -707,7 +811,15 @@ html {
    active: 10px desktop (16px icon + 20px = 36px), 14px mobile (16px icon
    + 28px = 44px). Both still leave double-digit slack at the 320px panel
    floor and the 418px mobile case with the JA heading — see PHASE 7D
-   report. */
+   report.
+
+   PHASE 4: .art-filter now lives in .popup-header, not .panel-body, so this
+   unnamed @container query resolves against .popup-header's own
+   container-type: inline-size instead. The threshold stays 350px unchanged:
+   .popup-header's inline padding was matched to .panel-body's in this same
+   phase (see the .popup-header comment above), so at any given panel width
+   both elements' container content-box width are now identical — moving
+   .art-filter to a different container didn't change what width it sees. */
 @container (max-width: 350px) {
   .art-filter .segmented-control-btn {
     display: inline-flex;
@@ -725,8 +837,16 @@ html {
   }
 }
 
+/* PHASE 4: align-self opts .art-filter out of .popup-header's default
+   flex stretch (it's the lone item on its own wrapped row — see
+   .popup-header-row above), width: fit-content keeps the segmented-control
+   pill hugging its own content instead of stretching to the header's full
+   width, and margin-top replaces the old margin-bottom (PHASE 3: spacing
+   before .art-grid in body flow) with spacing below the heading row instead. */
 .art-filter {
-  flex: 0 0 auto;
+  align-self: flex-start;
+  width: fit-content;
+  margin-top: 12px;
 }
 
 /* PHASE 8A: columns are now keyed to the panel's own content width via the
@@ -931,7 +1051,75 @@ html {
   max-width: min(900px, 100%);
 }
 
+/* Permanent fixed-size box (definite width + aspect-ratio); never depends on the image for its own size. */
+.lightbox-image-wrap {
+  position: relative;
+  max-width: 100%;
+  max-height: 58dvh;
+  width: min(100%, calc(58dvh * 1.5));
+  aspect-ratio: 3 / 2;
+  overflow: hidden;
+  border-radius: 6px;
+}
+
+.lightbox-image-wrap.is-portrait {
+  width: min(100%, calc(58dvh * 2 / 3));
+  aspect-ratio: 2 / 3;
+}
+
+/* Loaded: release the fixed box and let the image size it again. */
+.lightbox-image-wrap.is-loaded {
+  width: auto;
+  aspect-ratio: auto;
+}
+
+/* Blurred low-res stand-in shown while the full-size image loads; scale(1.08) keeps blurred edges out of the clipped area. */
+.lightbox-image-thumb {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  filter: blur(24px);
+  transform: scale(1.08);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.lightbox-image-thumb.is-loaded {
+  opacity: 1;
+}
+
+/* Loading-state outline; solid fill when there's no thumbnail, transparent frame around the blur when there is. Colors chosen for contrast against the dark backdrop. */
+.lightbox-image-placeholder {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--muted);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--muted) 16%, transparent);
+  animation: lightbox-placeholder-pulse 1.6s ease-in-out infinite;
+}
+
+.lightbox-image-placeholder.has-thumb {
+  background: transparent;
+}
+
+/* Stop the pulse once there's nothing left to signal (error) or the blur already reads as loading (thumb loaded). */
+.lightbox-image-placeholder.is-error,
+.lightbox-image-placeholder.thumb-loaded {
+  animation: none;
+  border-color: var(--muted);
+}
+
+@keyframes lightbox-placeholder-pulse {
+  0%, 100% { border-color: var(--muted); }
+  50%      { border-color: var(--accent); }
+}
+
+/* Full-size image: fades in on load and, once loaded, sizes the wrap in normal flow. */
 .lightbox-image {
+  position: relative;
   display: block;
   width: auto;
   height: auto;
@@ -939,6 +1127,12 @@ html {
   max-height: 58dvh;
   object-fit: contain;
   border-radius: 6px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.lightbox-image.is-loaded {
+  opacity: 1;
 }
 
 .lightbox-meta {
@@ -1069,6 +1263,10 @@ html {
   .popup-card.js-positioned { animation: none; }
   .skill-fill    { transition: none; }
   .art-cell-edge { transition: none; }
+  .panel-body    { transition: none; }
+  .lightbox-image-placeholder { animation: none; }
+  .lightbox-image             { transition: none; }
+  .lightbox-image-thumb       { transition: none; }
 }
 
 @media (--welcome-stack) {
@@ -1198,7 +1396,6 @@ html {
     max-height: min(46dvh, 360px);
     border-radius: 14px;
     transform: none;
-    overscroll-behavior: contain;
   }
 
   @keyframes popup-in {
@@ -1206,12 +1403,56 @@ html {
     to   { opacity: 1; transform: translateY(0) scale(1); }
   }
 
+  /* PHASE 7: two explicit rows instead of the old fs-btn-band +
+     60px-inset-heading + filter-below stack. .popup-header-row carries only
+     display:flex/justify-content/align-items (no background, padding,
+     margin, or border), so display:contents here drops nothing visually —
+     its two children (.panel-heading-block, .panel-close) become direct
+     grid items of .popup-header, placed alongside .art-filter.
+     .panel-fs-btn stays position:absolute (unchanged) rather than becoming
+     a grid item: it doesn't need to, since it's already excluded from grid
+     track sizing (absolutely positioned children are ignored for that, same
+     as in flex), and .popup-header keeps position:relative (Phase 1) as its
+     containing block regardless of display:grid. Its own top:8px/44px-tall
+     box now lines up exactly with row 1: padding-block-start is 8px and
+     .panel-close (the only real grid item in row 1) is also 44px tall, so
+     row 1 spans the identical 8px–52px band .panel-fs-btn already occupies. */
   .popup-header {
-    padding: 8px 8px 0;
+    padding: 8px 18px 8px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    row-gap: 8px;
+    align-items: center;
+  }
+
+  .popup-header-row {
+    display: contents;
+  }
+
+  .panel-close {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  .panel-heading-block {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  /* Row 2, right side, vertically centered against .panel-heading-block via
+     .popup-header's align-items:center — the stacked-layout margin-top:12px
+     (Phase 4/6) doesn't apply to a side-by-side row. */
+  .art-filter {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: end;
+    margin-top: 0;
   }
 
   .panel-body {
     padding: 4px 18px 22px;
+    overscroll-behavior: contain;
   }
 
   .panel-eyebrow {
@@ -1221,7 +1462,6 @@ html {
 
   .panel-heading {
     font-size: clamp(1.25rem, 5.8vw, 1.55rem);
-    margin-bottom: 16px;
   }
 
   .about-photo {
@@ -1283,6 +1523,10 @@ html {
   }
 
   .panel-body {
+    padding-inline: 16px;
+  }
+
+  .popup-header {
     padding-inline: 16px;
   }
 }

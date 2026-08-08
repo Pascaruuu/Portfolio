@@ -25,6 +25,11 @@ export function getLabel(id: SectionId, lang: Lang): string {
 	return languageStrings[lang].sections[id].label;
 }
 
+// ─── Header heading lookup ────────────────────────────
+export function getHeading(id: SectionId, lang: Lang): string {
+	return languageStrings[lang].sections[id].heading;
+}
+
 // ─── Typed content getters ────────────────────────────
 export function getAbout(lang: Lang): AboutContent {
 	const about = languageStrings[lang].sections.about;

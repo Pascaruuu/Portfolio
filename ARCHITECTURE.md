@@ -2,7 +2,7 @@
 
 A visually-rich SvelteKit + Svelte 5 (runes) portfolio site: a Three.js ASCII-rendered particle sphere with clickable hotspots, draggable/resizable popup panels, a cinematic lightspeed intro, and an ASCII-glitch reveal system. Bilingual EN/JA, desktop + mobile.
 
-**Stack:** SvelteKit · Svelte 5 (runes, forced on) · Three.js · Vite · TypeScript · GLSL · pnpm. CSS pipeline: postcss-custom-media fed by a build-time codegen plugin. DOM snapshot: `@zumer/snapdom`. Adapter: `adapter-auto`.
+**Stack:** SvelteKit · Svelte 5 (runes, forced on) · Three.js · Vite · TypeScript · GLSL · pnpm. CSS pipeline: postcss-custom-media fed by a build-time codegen plugin. Adapter: `adapter-auto`.
 
 This document describes module boundaries and how subsystems connect. It is not a line-level reference — read the source for internals. Where the architecture has known rough edges, they're called out as **⚠ Flags** rather than smoothed over.
 
@@ -29,7 +29,6 @@ src/
   routes/
     +layout.svelte              root layout
     +page.svelte                THE app shell — state, sphere init, hotspot overlay, popup, timeline beats
-    dev/ascii-glitch/+page.svelte   dev harness for the glitch action  ⚠ still ships (see Flags)
   lib/
     timeline.svelte.ts          headless beat sequencer (the choreography seam)
     viewport.svelte.ts          reactive viewport size + breakpoint constants
@@ -49,10 +48,10 @@ src/
       streaks.ts                lightspeed streak effect
       glitch.ts                 ⚠ GlitchEffect — used by the SPHERE pipeline, not just intro (see Flags)
     glitch/
-      constants.ts              shared glitch constants (chars, timings, salts)
-      asciiGlitchRender.ts      standalone Three-free glitch renderer
+      constants.ts              shared glitch constants (chars, timings, salts)  ⚠ see Flag #8
+      asciiGlitchRender.ts      standalone Three-free glitch renderer  ⚠ see Flag #8
     actions/
-      asciiGlitch.ts            use:asciiGlitch Svelte action  ⚠ dir untracked in git
+      panelScrollFade.ts        use:panelScrollFade — top/bottom scroll-fade mask for .panel-body
   components/
     LightspeedIntro.svelte      intro animation; feeds timeline.tick + mark('exit')
   generated/
@@ -141,15 +140,11 @@ The popup card mounts via `{#if panelOpen}` in `+page.svelte`. Drag/resize is ha
 
 The ASCII-glitch system corrupts DOM content into ASCII noise for appear/disappear/switch reveals, driven by the timeline.
 
-- `glitch/asciiGlitchRender.ts` — standalone, Three-free renderer producing the corruption.
-- `glitch/constants.ts` — shared chars, timings, salts.
-- `actions/asciiGlitch.ts` — the `use:asciiGlitch` Svelte action. Owns a snapdom-captured overlay canvas positioned via `getBoundingClientRect()` + `position:fixed`, appended as a **sibling** to the target (`node.parentElement`) to avoid an opacity-cascade bug. Exposes an imperative `GlitchControls { appear, disappear }` bridge.
+- `glitch/asciiGlitchRender.ts` — standalone, Three-free renderer producing the corruption.  ⚠ see Flag #8
+- `glitch/constants.ts` — shared chars, timings, salts.  ⚠ see Flag #8
+- `actions/asciiGlitch.ts` — the `use:asciiGlitch` Svelte action this section describes. Removed deliberately, along with its dev harness route (`src/routes/dev/ascii-glitch/`).
 
-The welcome block (`.welcome-block`) is the first production target: hidden through the intro (`deferMount`), glitches in at the `exit+500` beat in sync with the sphere glitch, holds 1.5s (or dismisses on global click), glitches out.
-
-**⚠ Flag — untracked directory.** `src/lib/actions/` (holding the live `asciiGlitch.ts`) is **not tracked in git**. Live production code outside version control — needs a dedicated tracking commit.
-
-**⚠ Flag — default divergence.** `asciiGlitch.ts` and `asciiGlitchRender.ts` carry two `DEFAULT_*` sets for the same options (e.g. `cellSize` 5 vs 6), plus harness-tuned preferred values not yet reconciled into either.
+The welcome block (`.welcome-block`) is the first production target: hidden through the intro (`deferMount`), glitches in at the `exit+500` beat in sync with the sphere glitch, holds 1.5s (or dismisses on global click), glitches out. **This description predates the action's removal — see Flag #8 for what's actually still wired up.**
 
 ---
 
@@ -192,8 +187,6 @@ Two `.svelte.ts` rune modules are clean single sources of truth: `viewport.svelt
 ## 13. Conventions & load-bearing constraints
 
 - **Sphere shifting uses `camera.setViewOffset`, never CSS transforms** — CSS `translateX` breaks `worldToScreen`, drifting hotspots.
-- **Glitch overlay is a sibling, not a child** — appending inside the target zeros it via opacity cascade; it goes on `node.parentElement`.
-- **snapdom clips capture to the node's box** — overflow (e.g. `nowrap` content wider than the box) isn't captured; fix at the layout level, not by union-sizing the overlay.
 - **Imperative bridges are caller-owned, callee-mutated** — new controllers mirror `sphereCtl`/`welcomeCtl` (a plain object with placeholder methods overwritten at init, outside reactivity).
 - **`generated/breakpoints.css` is codegen** — edit the TS constants, not the CSS.
 - **Treat z-index as global** — `.main-content` establishes no stacking context (see §7).
@@ -205,15 +198,13 @@ Two `.svelte.ts` rune modules are clean single sources of truth: `viewport.svelt
 Housekeeping / correctness items surfaced during architecture review, none blocking:
 
 1. `src/lib/index.ts` — dead `$lib` barrel; nothing imports bare from `$lib`.
-2. `src/routes/dev/ascii-glitch/+page.svelte` — self-flagged "delete before shipping," still a live route under adapter-auto.
-3. `src/theme.css` header comment references "Invoice Recording System" — leftover from an unrelated template.
-4. `sphereCtl` split/narrower type vs. the full `controls` local (§5).
-5. Two TS→CSS mirrors — breakpoints (automated) vs. panel geometry (manual, comment-enforced) (§9).
-6. `.main-content` flat global z-index order (§7).
-7. `lightspeed/glitch.ts` is a sphere-pipeline dependency despite its intro-only directory (§5).
-8. `src/lib/actions/` untracked in git (§8).
-9. No `tsc` package.json script backing the mandated verification (§12).
-10. `asciiGlitch.ts` vs `asciiGlitchRender.ts` default divergence (§8).
+2. `src/theme.css` header comment references "Invoice Recording System" — leftover from an unrelated template.
+3. `sphereCtl` split/narrower type vs. the full `controls` local (§5).
+4. Two TS→CSS mirrors — breakpoints (automated) vs. panel geometry (manual, comment-enforced) (§9).
+5. `.main-content` flat global z-index order (§7).
+6. `lightspeed/glitch.ts` is a sphere-pipeline dependency despite its intro-only directory (§5) — **but see #8: this file may not exist either.**
+7. No `tsc` package.json script backing the mandated verification (§12).
+8. **Glitch subsystem doc/code drift, broader than the removed action.** `actions/asciiGlitch.ts` and its dev route (`routes/dev/ascii-glitch/`) were confirmed removed deliberately, but this doc's description of the *rest* of the glitch subsystem was checked against the working tree during that same cleanup and doesn't hold up either: `types.ts` has no `GlitchControls` interface (only `SphereControls` — §2, §5, §11 all reference `GlitchControls`); `sphere/ascii.ts`'s composer is `RenderPass → ASCII EffectPass` only, no `GlitchEffect` pass (§1, §5, §8); and `lightspeed/glitch.ts`, `glitch/constants.ts`, `glitch/asciiGlitchRender.ts` are all absent from the working tree, same as `actions/asciiGlitch.ts` was. A repo-wide case-sensitive grep for `glitch`/`Glitch` under `src/` returns zero matches. Unclear whether this is all part of the same deliberate removal (undocumented) or a separate, older doc/code drift — needs the same author confirmation the original `asciiGlitch.ts` question got. Until resolved, treat §1, §3, §4, §5, §8, §10, §11's glitch-related claims as unverified, not fact.
 
 ---
 

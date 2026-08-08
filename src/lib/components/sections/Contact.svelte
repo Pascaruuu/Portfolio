@@ -15,8 +15,6 @@
 	}
 </script>
 
-<p class="panel-eyebrow">{c.label}</p>
-<h2 class="panel-heading">{c.heading}</h2>
 <button
 	class="email-copy"
 	onclick={() => copyEmail(c.email)}
