@@ -1,0 +1,10 @@
+{
+	"title": { "en": "Serena", "ja": "セレナ" },
+	"description": {
+		"en": "A karuta-style commission of Serena from Pokémon XY, in her performer outfit, framed in a vivid red-and-pink ornate border.",
+		"ja": "『ポケットモンスターXY』のセレナを、パフォーマー衣装姿で描いたカルタ風の依頼イラスト。鮮やかな赤とピンクの装飾額縁で縁取られている。"
+	},
+	"category": "digital",
+	"date": "2023-06-23",
+	"images": ["serena.png"]
+}
