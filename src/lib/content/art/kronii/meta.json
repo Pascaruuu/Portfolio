@@ -1,0 +1,10 @@
+{
+	"title": { "en": "Kronii", "ja": "クロニー" },
+	"description": {
+		"en": "A karuta-style illustration commissioned of Kronii from Hololive EN, framed in a midnight-blue ornate border with a clockwork motif.",
+		"ja": "ホロライブEN所属クロニーを描いたカルタ風の依頼イラスト。時計モチーフをあしらった濃紺の装飾額縁で縁取られている。"
+	},
+	"category": "digital",
+	"date": "2023-11-02",
+	"images": ["kronii.png"]
+}
