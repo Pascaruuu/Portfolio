@@ -1,9 +1,0 @@
-{
-	"title": { "en": "More coming soon", "ja": "準備中" },
-	"description": {
-		"en": "A new piece for this slot is in progress.",
-		"ja": "この枠の新しい作品を制作中です。"
-	},
-	"category": "hand-drawn",
-	"images": ["coming-soon.png"]
-}
