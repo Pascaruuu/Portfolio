@@ -1,0 +1,10 @@
+{
+	"title": { "en": "Asuna", "ja": "アスナ" },
+	"description": {
+		"en": "A karuta commission of Asuna from Sword Art Online, the frame is one of the game's decorative items.",
+		"ja": "『ソードアート・オンライン』のアスナを描いたカルタ風の依頼作品。額縁はゲーム内の装飾アイテムのひとつをモチーフにしている。"
+	},
+	"category": "digital",
+	"date": "2023-04-13",
+	"images": ["asuna.png"]
+}
