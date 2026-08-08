@@ -1,10 +1,9 @@
 {
-	"title": { "en": "Ink Study No. 4", "ja": "インク習作 No. 4" },
+	"title": { "en": "More coming soon", "ja": "準備中" },
 	"description": {
-		"en": "A quick hand-drawn study in ink, focused on directional line weight.",
-		"ja": "線の強弱に焦点を当てた、手描きによる簡潔なインク習作。"
+		"en": "A new piece for this slot is in progress.",
+		"ja": "この枠の新しい作品を制作中です。"
 	},
 	"category": "hand-drawn",
-	"date": "2025-11-02",
-	"images": ["photo.jpg"]
+	"images": ["coming-soon.png"]
 }

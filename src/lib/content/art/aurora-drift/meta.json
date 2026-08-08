@@ -1,10 +1,9 @@
 {
-	"title": { "en": "Aurora Drift", "ja": "オーロラ・ドリフト" },
+	"title": { "en": "More coming soon", "ja": "準備中" },
 	"description": {
-		"en": "A layered digital gradient study exploring color drift across a wide canvas.",
-		"ja": "広いキャンバスに広がる色彩の変化を探る、レイヤー構成のデジタルグラデーション習作。"
+		"en": "A new piece for this slot is in progress.",
+		"ja": "この枠の新しい作品を制作中です。"
 	},
 	"category": "digital",
-	"date": "2026-03-12",
-	"images": ["gradient.png", "gradient-portrait.png", "gradient-detail.png"]
+	"images": ["coming-soon.png"]
 }

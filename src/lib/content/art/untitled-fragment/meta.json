@@ -1,9 +1,9 @@
 {
-	"title": { "en": "Untitled Fragment", "ja": "無題の断片" },
+	"title": { "en": "More coming soon", "ja": "準備中" },
 	"description": {
-		"en": "An unfinished digital piece with no recorded creation date.",
-		"ja": "制作日が記録されていない未完のデジタル作品。"
+		"en": "A new piece for this slot is in progress.",
+		"ja": "この枠の新しい作品を制作中です。"
 	},
 	"category": "digital",
-	"images": ["gradient.png"]
+	"images": ["coming-soon.png"]
 }
