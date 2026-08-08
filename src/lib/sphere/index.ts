@@ -66,7 +66,7 @@ export async function initSphere(
 	camera.layers.enable(1);
 	camera.position.set(0, 0, cameraProfile.baseZ);
 	camera.lookAt(0, 0, 0);
-	const { composer, dispose: disposeComposer, setSphereScreenPos, setSphereScale, setWorldState, setViewOffset } = createAsciiRenderer(renderer, scene, camera, true);
+	const { composer, dispose: disposeComposer, setSphereScale, setWorldState, setViewOffset } = createAsciiRenderer(renderer, scene, camera, true);
 	const baseCameraPos = new THREE.Vector3(0, 0, cameraProfile.baseZ);
 	const targetCameraPos = baseCameraPos.clone();
 	const currentLookAt = new THREE.Vector3();
@@ -265,12 +265,7 @@ export async function initSphere(
 		const screenCenterY = (-projectedSphereCenter.y * 0.5 + 0.5) * viewport.vh;
 		const screenEdgeX = (projectedSphereEdge.x * 0.5 + 0.5) * viewport.vw;
 		const screenEdgeY = (-projectedSphereEdge.y * 0.5 + 0.5) * viewport.vh;
-		const projectedRadius = Math.hypot(screenEdgeX - screenCenterX, screenEdgeY - screenCenterY);
-		setSphereScreenPos(
-			screenCenterX / viewport.vw,
-			1 - screenCenterY / viewport.vh,
-			projectedRadius / viewport.vh
-		);
+		const projectedRadius = Math.hypot(screenEdgeX - screenCenterX, screenEdgeY - screenCenterY); // still feeds the asciiStarsBg CSS mask below; no longer also feeds the ascii shader (that path is dead, see ascii.ts)
 		setSphereScale(sphereWorldScale.x);
 		asciiStarsBg.style.setProperty('--sphere-x', `${screenCenterX}px`);
 		asciiStarsBg.style.setProperty('--sphere-y', `${screenCenterY}px`);

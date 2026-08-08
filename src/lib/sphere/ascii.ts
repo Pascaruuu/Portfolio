@@ -1,6 +1,16 @@
 import * as THREE from 'three';
 import { EffectComposer, RenderPass, EffectPass, Effect, BlendFunction } from 'postprocessing';
-import { ASCII_CELL_SIZE_DESKTOP, ASCII_CELL_SIZE_MOBILE, ASCII_CHARS, ASCII_COLOR } from './constants.js';
+import {
+	ASCII_CELL_SIZE_DESKTOP,
+	ASCII_CELL_SIZE_MOBILE,
+	ASCII_CHARS,
+	ASCII_COLOR,
+	ASCII_LAND_END_INDEX,
+	ASCII_LAND_START_INDEX,
+	ASCII_OCEAN_END_INDEX,
+	ASCII_OCEAN_START_INDEX,
+	TERRAIN_SEA_LEVEL,
+} from './constants.js';
 import { viewport } from '../viewport.svelte.js';
 
 const FRAGMENT = /* glsl */`
@@ -8,13 +18,23 @@ uniform sampler2D uCharacters;
 uniform float uCellSize;
 uniform float uCharactersCount;
 uniform vec3 uColor;
-uniform vec2 sphereCenter;
-uniform float sphereRadius;
 uniform mat4 viewToSphereObject;
 uniform vec3 sphereCenterView;
 uniform vec2 uViewOffset; // NDC-space offset from camera.setViewOffset
 uniform bool uSphereEnabled;
 uniform float uSphereScale;
+
+const float OCEAN_SEA_LEVEL = ${TERRAIN_SEA_LEVEL.toFixed(2)}; // interpolated from constants.ts TERRAIN_SEA_LEVEL, the single source shared with particles.ts
+const float OCEAN_ALPHA_MULTIPLIER = 0.35; // dim enough to read as background texture, not compete visually with landmass glyphs
+const float OCEAN_GLYPH_FLOOR_INDEX = ${ASCII_OCEAN_START_INDEX.toFixed(1)}; // derived from ASCII_OCEAN_START_INDEX in constants.ts; sparsest ocean glyph, used for deep water
+const float OCEAN_GLYPH_CEILING_INDEX = ${ASCII_OCEAN_END_INDEX.toFixed(1)}; // derived from ASCII_OCEAN_END_INDEX in constants.ts; densest ocean glyph, used at the coastline
+const float OCEAN_DEPTH_FLOOR = 0.04; // measured (500k-sample fbm survey): ~p25 of ocean depth-below-sea-level; beyond this depth most open ocean already bottoms out at the sparsest glyph
+const float LAND_GLYPH_FLOOR_INDEX = ${ASCII_LAND_START_INDEX.toFixed(1)}; // derived from ASCII_LAND_START_INDEX in constants.ts (land segment start)
+const float LAND_GLYPH_CEILING_INDEX = ${ASCII_LAND_END_INDEX.toFixed(1)}; // derived from ASCII_LAND_END_INDEX in constants.ts (land segment end); land can never select an ocean-segment index
+const float LAND_SEGMENT_WIDTH = LAND_GLYPH_CEILING_INDEX - LAND_GLYPH_FLOOR_INDEX; // land index range, used to scale erosion into glyph-index steps
+const float LAND_ELEVATION_CEILING = 0.18; // measured (500k-sample fbm survey): ~p95 of land elevation above sea level; rare highest ridges saturate here so the rest of land spreads across the full segment
+const float RIM_ONSET_NV = 0.835; // N·V where the rim band begins; converted from the old (aspect-broken) distFromCenter=0.55 onset via NV=sqrt(1-r^2), the orthographic sphere approximation
+const float RIM_DISCARD_NV = 0.30; // N·V below which land discards entirely; converted the same way from the effective distFromCenter (~0.954) where the old edgeFactor reached its 0.97 cutoff
 
 float hash3(vec3 p) {
   p = fract(p * vec3(443.897, 441.423, 437.195));
@@ -63,21 +83,15 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   float luminance = dot(scene.rgb, vec3(0.299, 0.587, 0.114));
 
   float luma = luminance;
-  float terrainRampBoost = 0.0;
+  bool sphereHit = false; // true only when the reconstructed ray actually intersects the sphere; reused below instead of a second intersection test
+  float terrain = 0.0; // hoisted out of the uSphereEnabled block so the ocean/land branches below can read it
+  float nv = 0.0; // hoisted N·V (surface normal dot view direction) so the rim discard below can reuse the same geometric measure edgeFactor derives from
+  float edgeFactor = 0.0; // hoisted so land's erosion scaling below can reuse it
+  float erosion = 0.0; // hoisted so land's glyph-index reduction below can reuse it
 
   if (uSphereEnabled) {
-    // Reconstruct a view-space ray to find the surface point.
-    vec2 ndc = uv * 2.0 - 1.0 - uViewOffset;
-    vec2 sc = sphereCenter * 2.0 - 1.0;
-    float sr = sphereRadius * 2.0;
-    vec2 localNDC = ndc - sc;
-    float distFromCenter = length(localNDC) / sr;
-
-    // Ray in NDC space from camera toward pixel
-    // Camera at (0,0,1) in NDC, sphere at sc with radius sr
-    // Simple 2D+depth ray: origin=(0,0), dir=normalize(ndc - sphereCenter_ndc, depth)
-    // Use sphere screen projection directly for intersection
-    // Ray origin in screen-normalized space
+    // Reconstruct a view-space ray from the cell centre, not the fragment, so every downstream decision is evaluated once per cell
+    vec2 ndc = cellCenter * 2.0 - 1.0 - uViewOffset;
     float aspect = resolution.x / resolution.y;
 
     // Reconstruct view-space ray (FOV=55deg, tan(27.5deg)=0.5206)
@@ -90,18 +104,20 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
     float b2 = dot(oc, rayDir);
     float c = dot(oc, oc) - uSphereScale * uSphereScale;
     float disc = b2 * b2 - c;
+    sphereHit = disc > 0.0; // capture the ray-hit result once for reuse outside this block
 
     vec3 surfacePoint = vec3(0.0);
     float surfaceNoise = 0.5;
     if (disc > 0.0) {
       float t = -b2 - sqrt(disc);
       vec3 hitView = rayOrigin + t * rayDir;
+      vec3 viewNormal = normalize(hitView - sphereCenterView); // outward surface normal in view space at the hit point
+      nv = dot(viewNormal, -rayDir); // N·V: 1 facing the camera, 0 at the limb -- replaces the aspect-distorted distFromCenter as the rim measure
       surfacePoint = (viewToSphereObject * vec4(hitView - sphereCenterView, 0.0)).xyz;
       surfaceNoise = fbm(surfacePoint * 2.5);
     }
 
     // --- Terrain depth ---
-    float terrain = 0.0;
     if (disc > 0.0) {
       // Multi-octave FBM for terrain elevation
       terrain = fbm(surfacePoint * 1.8 + vec3(3.7, 1.2, 5.5));
@@ -109,43 +125,48 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
       terrain = terrain - 0.5;
     }
 
-    // Ocean zones: terrain < -0.1 -> suppress luminance (dark water)
-    // Land zones:  terrain > 0.1  -> boost luminance (bright landmass)
-    // Ridge zones: terrain > 0.35 -> extra boost (mountain highlights)
+    // Edge erosion: now driven by N·V (surface geometry) instead of screen-space distance, so the rim band follows the sphere's true round silhouette regardless of viewport aspect
+    edgeFactor = smoothstep(RIM_ONSET_NV, 0.0, nv); // reversed edges (same pattern used elsewhere in this file): 0 near the camera-facing pole, 1 at the true limb
+    erosion = surfaceNoise * 0.9 * edgeFactor;
 
-    // Edge erosion
-    float edgeFactor = smoothstep(0.55, 1.0, distFromCenter);
-    float erosion = surfaceNoise * 0.9 * edgeFactor;
-
-    // Terrain boost/suppress
-    float terrainBoost = 0.0;
-    if (disc > 0.0) {
-      terrainBoost = smoothstep(-0.1, 0.35, terrain) * 1.2;
-      float oceanSuppress = smoothstep(0.0, -0.25, terrain) * 0.9;
-      terrainBoost -= oceanSuppress;
-    }
-
-    luma = luminance - erosion + terrainBoost;
-    terrainRampBoost = disc > 0.0 ? smoothstep(0.1, 0.45, terrain) * 0.5 : 0.0;
+    luma = luminance - erosion; // luma now only feeds the background discard below; ocean and land glyph selection read terrain/depth directly instead
   }
 
-  if (luma < 0.12) discard;
+  bool isOcean = sphereHit && terrain < OCEAN_SEA_LEVEL; // below-sea-level cells on the sphere bypass the luma ramp/discard; land and background paths are untouched
 
-  float remapped = clamp((luma - 0.05) / (1.0 - 0.05), 0.0, 1.0);
-  remapped = clamp(remapped + terrainRampBoost, 0.0, 1.0);
-  float charIndex = floor(remapped * (uCharactersCount - 1.0));
+  if (!sphereHit && luma < 0.12) discard; // background only -- land and ocean always render at least their floor glyph
+  if (sphereHit && !isOcean && nv < RIM_DISCARD_NV) discard; // land vanishes only within RIM_DISCARD_NV of the true limb (grazing incidence); erosion elsewhere just steps the glyph down instead
+
+  float charIndex;
+  float alpha;
   vec3 glyphColor = uColor;
 
-  vec2 atlasUV = vec2((charIndex + cellUV.x) / uCharactersCount, cellUV.y);
-  float alpha = texture2D(uCharacters, atlasUV).r;
+  if (!sphereHit) {
+    // Background is not ocean: map luminance across the full combined atlas (ocean+land segments), the pre-Phase-8 background behavior, so it keeps responding to scene brightness instead of pinning to one glyph
+    float bgT = clamp((luma - 0.05) / 0.95, 0.0, 1.0);
+    charIndex = floor(bgT * (uCharactersCount - 1.0));
+    vec2 atlasUV = vec2((charIndex + cellUV.x) / uCharactersCount, cellUV.y);
+    alpha = texture2D(uCharacters, atlasUV).r; // full glyph alpha -- OCEAN_ALPHA_MULTIPLIER exists to push ocean behind land, which doesn't apply to background
+  } else if (isOcean) {
+    float oceanDepth = OCEAN_SEA_LEVEL - terrain; // positive depth below sea level; terrain < OCEAN_SEA_LEVEL is guaranteed here since isOcean is true
+    float oceanDepthT = clamp(oceanDepth / OCEAN_DEPTH_FLOOR, 0.0, 1.0); // 0 at the coastline, 1 at/beyond the measured depth floor
+    charIndex = floor(mix(OCEAN_GLYPH_CEILING_INDEX, OCEAN_GLYPH_FLOOR_INDEX, oceanDepthT)); // shallow water (t=0) selects the densest ocean glyph, deep water (t=1) the sparsest
+    vec2 atlasUV = vec2((charIndex + cellUV.x) / uCharactersCount, cellUV.y);
+    alpha = texture2D(uCharacters, atlasUV).r * OCEAN_ALPHA_MULTIPLIER; // dimmed uniformly across all four ocean glyphs so ocean reads as texture, not terrain detail
+  } else {
+    float landElevationT = clamp(terrain / LAND_ELEVATION_CEILING, 0.0, 1.0); // land's index now derives from elevation above sea level, not particle-driven luminance
+    charIndex = floor(mix(LAND_GLYPH_FLOOR_INDEX, LAND_GLYPH_CEILING_INDEX, landElevationT)); // land maps into [land segment start, land segment end] only, never into the ocean segment
+    float erosionSteps = erosion * LAND_SEGMENT_WIDTH; // scale normalized erosion into land index-steps so rim cells step down toward sparser glyphs
+    charIndex = floor(clamp(charIndex - erosionSteps, LAND_GLYPH_FLOOR_INDEX, LAND_GLYPH_CEILING_INDEX)); // re-floor after the continuous erosion subtraction so the atlas lookup stays glyph-aligned
+    vec2 atlasUV = vec2((charIndex + cellUV.x) / uCharactersCount, cellUV.y);
+    alpha = texture2D(uCharacters, atlasUV).r;
+  }
+
   outputColor = vec4(glyphColor * alpha, alpha);
 }
 `;
 
 class ASCIIEffect extends Effect {
-	private readonly sphereCenterUniform: THREE.Uniform<THREE.Vector2>;
-	private readonly sphereRadiusUniform: THREE.Uniform<number>;
-
 	constructor(characters: string, cellSize: number, color: string, sphereEnabled: boolean) {
 		const count = characters.length;
 		const atlas = document.createElement('canvas');
@@ -167,8 +188,6 @@ class ASCIIEffect extends Effect {
 		texture.magFilter = THREE.NearestFilter;
 
 		const c = new THREE.Color(color);
-		const sphereCenter = new THREE.Uniform(new THREE.Vector2(0.5, 0.5));
-		const sphereRadius = new THREE.Uniform(0.38);
 		const viewToSphereObject = new THREE.Uniform(new THREE.Matrix4());
 		const sphereCenterView = new THREE.Uniform(new THREE.Vector3());
 
@@ -179,8 +198,6 @@ class ASCIIEffect extends Effect {
 				['uCellSize', new THREE.Uniform(cellSize)],
 				['uCharactersCount', new THREE.Uniform(count)],
 				['uColor', new THREE.Uniform(new THREE.Vector3(c.r, c.g, c.b))],
-				['sphereCenter', sphereCenter],
-				['sphereRadius', sphereRadius],
 				['viewToSphereObject', viewToSphereObject],
 				['sphereCenterView', sphereCenterView],
 				['uViewOffset', new THREE.Uniform(new THREE.Vector2(0, 0))],
@@ -188,14 +205,6 @@ class ASCIIEffect extends Effect {
 				['uSphereScale', new THREE.Uniform(1.0)],
 			]),
 		});
-
-		this.sphereCenterUniform = sphereCenter;
-		this.sphereRadiusUniform = sphereRadius;
-	}
-
-	setSphereScreenPos(cx: number, cy: number, r: number): void {
-		this.sphereCenterUniform.value.set(cx, cy);
-		this.sphereRadiusUniform.value = r;
 	}
 
 	setWorldState(viewToSphereObject: THREE.Matrix4, sphereCenterView: THREE.Vector3): void {
@@ -221,7 +230,7 @@ export function createAsciiRenderer(
 	scene: THREE.Scene,
 	camera: THREE.Camera,
 	sphereEnabled: boolean
-): { composer: EffectComposer; dispose(): void; setSphereScreenPos(cx: number, cy: number, r: number): void; setWorldState(viewToSphereObject: THREE.Matrix4, sphereCenterView: THREE.Vector3): void; setViewOffset(ndcX: number, ndcY: number): void; setSphereEnabled(enabled: boolean): void; setSphereScale(s: number): void } {
+): { composer: EffectComposer; dispose(): void; setWorldState(viewToSphereObject: THREE.Matrix4, sphereCenterView: THREE.Vector3): void; setViewOffset(ndcX: number, ndcY: number): void; setSphereEnabled(enabled: boolean): void; setSphereScale(s: number): void } {
 	const composer = new EffectComposer(renderer);
 	composer.addPass(new RenderPass(scene, camera));
 	// ASCII_CELL_SIZE_DESKTOP/MOBILE are tuned in CSS pixels; the shader's
@@ -236,9 +245,6 @@ export function createAsciiRenderer(
 
 	return {
 		composer,
-		setSphereScreenPos(cx: number, cy: number, r: number): void {
-			effect.setSphereScreenPos(cx, cy, r);
-		},
 		setWorldState(viewToSphereObject: THREE.Matrix4, sphereCenterView: THREE.Vector3): void {
 			effect.setWorldState(viewToSphereObject, sphereCenterView);
 		},

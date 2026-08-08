@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { SPHERE_R } from './constants.js';
+import { SPHERE_R, TERRAIN_SEA_LEVEL } from './constants.js';
 import { buildParticles } from './helpers.js';
 import type { TerrainMap } from './terrain-bake.js';
 
@@ -14,8 +14,6 @@ type ParticleShaderMaterial = THREE.ShaderMaterial & {
 export interface ParticleSystem {
 	particleMaterial: ParticleShaderMaterial;
 }
-
-const PARTICLE_TERRAIN_MIN = 0.13;
 
 function buildLandBiasedParticles(targetCount: number, r: number, terrainMap: TerrainMap): { geometry: THREE.BufferGeometry; terrainValues: Float32Array } {
 	const candidateCount = Math.ceil(targetCount * 3.2);
@@ -36,7 +34,7 @@ function buildLandBiasedParticles(targetCount: number, r: number, terrainMap: Te
 
 	for (let i = 0; i < candidateCount; i++) {
 		const terrain = candidateTerrainValues[i] ?? -1;
-		if (terrain >= PARTICLE_TERRAIN_MIN) {
+		if (terrain >= TERRAIN_SEA_LEVEL) {
 			landIndices.push(i);
 		}
 	}
@@ -64,7 +62,7 @@ function buildLandBiasedParticles(targetCount: number, r: number, terrainMap: Te
 		colors[targetI3] = candidateColorArray[sourceI3] ?? 0;
 		colors[targetI3 + 1] = candidateColorArray[sourceI3 + 1] ?? 0;
 		colors[targetI3 + 2] = candidateColorArray[sourceI3 + 2] ?? 0;
-		selectedTerrainValues[i] = Math.max(PARTICLE_TERRAIN_MIN, candidateTerrainValues[sourceIndex] ?? PARTICLE_TERRAIN_MIN);
+		selectedTerrainValues[i] = Math.max(TERRAIN_SEA_LEVEL, candidateTerrainValues[sourceIndex] ?? TERRAIN_SEA_LEVEL);
 	}
 
 	const geometry = new THREE.BufferGeometry();
@@ -139,7 +137,7 @@ export function createParticleSystem(sphereGroup: THREE.Group, particleCount: nu
 			varying float vFlicker;
 
 			void main() {
-				if (vTerrain < ${PARTICLE_TERRAIN_MIN.toFixed(2)}) discard;
+				if (vTerrain < ${TERRAIN_SEA_LEVEL.toFixed(2)}) discard;
 				float charIndex = vFlicker;
 				vec2 atlasUV = vec2((charIndex + gl_PointCoord.x) / uCharCount, gl_PointCoord.y);
 				float alpha = texture2D(uCharacters, atlasUV).r;

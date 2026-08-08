@@ -22,5 +22,10 @@ export default defineConfig({
 		postcss: {
 			plugins: [postcssCustomMedia()]
 		}
-	}
+	},
+	server: {
+		allowedHosts: [
+		'.trycloudflare.com'
+		]
+  	}
 });

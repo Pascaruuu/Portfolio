@@ -21,7 +21,25 @@ export const HOVER_RADIUS_SQ = 52 * 52; // screen-space px^2
 
 export const ACCENT = portfolioColors.accentNumber;
 export const ASCII_COLOR = portfolioColors.ascii;
-export const ASCII_CHARS = ' .,·:;!|=+xo#%&@██';
+
+/** Ocean glyph ramp, sparsest first. Deep water selects the start of this segment, shallow coastal water the end. */
+export const ASCII_OCEAN_CHARS = '.,·:';
+/** Land glyph ramp, sparsest first. Dim land selects the start of this segment, bright/high land the end. */
+export const ASCII_LAND_CHARS = '=+xo#%&@██';
+/** Combined atlas string, ocean segment first, so one atlas texture and one uCharactersCount serve both ramps. */
+export const ASCII_CHARS = ASCII_OCEAN_CHARS + ASCII_LAND_CHARS;
+
+/** First index of the ocean segment in ASCII_CHARS; always 0 since ocean is concatenated first. */
+export const ASCII_OCEAN_START_INDEX = 0;
+/** Last index of the ocean segment in ASCII_CHARS, derived from the ocean segment's length. */
+export const ASCII_OCEAN_END_INDEX = ASCII_OCEAN_CHARS.length - 1;
+/** First index of the land segment in ASCII_CHARS, derived from the ocean segment's length (where land begins). */
+export const ASCII_LAND_START_INDEX = ASCII_OCEAN_CHARS.length;
+/** Last index of the land segment in ASCII_CHARS, derived from the combined string's length. */
+export const ASCII_LAND_END_INDEX = ASCII_CHARS.length - 1;
+
+/** Terrain elevation (fbm - 0.5, roughly -0.5..0.5) above which a sphere point counts as land rather than ocean. Shared by particle placement and the ASCII shader's ocean glyph test so they agree on where the coastline sits. Measured via sampling: 0.13 gave ~9.8% land, 0.0 gives ~41% land. */
+export const TERRAIN_SEA_LEVEL = 0.0;
 
 /**
  * ASCII glyph cell size on desktop viewports, in CSS pixels. This is the

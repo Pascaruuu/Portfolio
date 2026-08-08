@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ACCENT, HOTSPOT_DEFS, SPHERE_R } from './constants.js';
+import { ACCENT, HOTSPOT_DEFS, SPHERE_R, TERRAIN_SEA_LEVEL } from './constants.js';
 import type { HotspotEntry } from './types.js';
 import { makeCircleTex } from './textures.js';
 import { latLonToVec3 } from './helpers.js';
@@ -19,7 +19,7 @@ export function buildHotspots(sphereGroup: THREE.Group, terrainMap: TerrainMap):
 		const ny = pos.y / SPHERE_R;
 		const nz = pos.z / SPHERE_R;
 		const terrain = terrainMap.sample(nx, ny, nz);
-		if (terrain < 0.13) {
+		if (terrain < TERRAIN_SEA_LEVEL) { // last hand-written duplicate of the sea level threshold, now sourced from constants.ts
 			console.warn(
 				`Hotspot "${def.id}" at lat=${def.lat} lon=${def.lon} ` +
 				`has terrain=${terrain.toFixed(4)} — below land threshold`
