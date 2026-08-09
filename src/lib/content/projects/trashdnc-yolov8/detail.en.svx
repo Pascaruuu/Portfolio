@@ -2,6 +2,9 @@
 	import StatBlock from '$lib/components/content/StatBlock.svelte';
 	import SpecList from '$lib/components/content/SpecList.svelte';
 	import Callout from '$lib/components/content/Callout.svelte';
+	import BodyImage from '$lib/components/content/BodyImage.svelte';
+
+	let { images } = $props();
 </script>
 
 This one started from a simple annoyance: recycling only works if the material gets sorted correctly, and asking people to tell glass from "other" plastic at a glance is a bad system to rely on. I wanted to see how far a small object detector could go at automating that first, error-prone classification step.
@@ -44,6 +47,8 @@ I also set up a small [demo on Hugging Face Spaces](https://huggingface.co/space
 ### Where it breaks down
 
 The confusion matrix shows where that number is actually coming from: five of the six classes land between 94% and 99% recall.
+
+<BodyImage image={images['confusion_matrix.png']} alt="Confusion matrix across the six waste categories" caption="Per-class recall on the held-out validation set. unknown is the one weak diagonal cell." />
 
 <Callout label="Limitation">
 

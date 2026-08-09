@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Component } from 'svelte';
 	import { getProjects } from '$lib/content.js';
-	import type { ProjectItem } from '$lib/content/projects/types.js';
+	import type { BodyImageLoader, ProjectItem } from '$lib/content/projects/types.js';
 	import type { Lang } from '$lib/types.js';
 
 	let { project, lang }: { project: ProjectItem; lang: Lang } = $props();
@@ -18,7 +18,7 @@
 	type DetailState =
 		| { status: 'idle' }
 		| { status: 'loading' }
-		| { status: 'loaded'; Comp: Component }
+		| { status: 'loaded'; Comp: Component<{ images: Record<string, BodyImageLoader> }> }
 		| { status: 'failed' };
 
 	let detailState = $state<DetailState>({ status: 'idle' });
@@ -72,6 +72,6 @@
 {:else if detailState.status === 'loaded'}
 	{@const DetailBody = detailState.Comp}
 	<div class="project-detail-markdown">
-		<DetailBody />
+		<DetailBody images={project.bodyImages} />
 	</div>
 {/if}

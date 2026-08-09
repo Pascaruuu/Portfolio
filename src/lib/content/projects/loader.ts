@@ -1,6 +1,6 @@
 import type { Component } from 'svelte';
 import type { Picture } from '@sveltejs/enhanced-img';
-import type { DetailLoader, ProjectItem } from './types.js';
+import type { BodyImageLoader, DetailLoader, ProjectItem } from './types.js';
 import { checkDetailFiles, detailFilename, validateProjectMeta } from './validate.js';
 
 const metaModules = import.meta.glob<unknown>('./*/meta.json', {
@@ -31,6 +31,27 @@ const imageModules = import.meta.glob<Picture>('./*/*.{png,jpg,jpeg,webp}', {
 	import: 'default'
 });
 
+// PHASE 5E: every image in every project directory, at the width a body
+// image can ever actually render at -- .project-detail-markdown's
+// --prose-measure (app.css) tops out at 67ch, which is 564px at this
+// element's 0.82rem/13.12px font-size (67 * 8.41px/ch = 563.5px, rounded up
+// so the derivative is never a hair narrower than its one possible display
+// width). Same "one fixed size, not a responsive srcset" choice as
+// imageModules above, for the same reason: a body image's rendered width has
+// a hard ceiling, so there's no smaller breakpoint worth a second derivative.
+// NOT eager, unlike imageModules -- mirrors detailModules' own reasoning
+// (below): a write-up's images shouldn't ship in the bundle any more eagerly
+// than the write-up itself does, for a panel most visitors never open. Same
+// glob pattern as imageModules on purpose (see collectBuckets: the card
+// image's own filename is filtered back out per-project below, not excluded
+// here) -- keeping one pattern for "every image file in a project directory"
+// is simpler than trying to express "every image file except this other
+// glob's match" in the glob pattern itself.
+const bodyImageModules = import.meta.glob<Picture>('./*/*.{png,jpg,jpeg,webp}', {
+	query: { enhanced: true, w: '564', quality: '50' },
+	import: 'default'
+});
+
 function pathParts(path: string): { slug: string; filename: string } {
 	const segments = path.split('/');
 	return {
@@ -43,6 +64,7 @@ interface Bucket {
 	meta: unknown;
 	files: Map<string, Picture>;
 	detail: Map<string, DetailLoader>;
+	bodyImages: Map<string, BodyImageLoader>;
 }
 
 function collectBuckets(): Map<string, Bucket> {
@@ -51,7 +73,7 @@ function collectBuckets(): Map<string, Bucket> {
 	const bucketFor = (slug: string): Bucket => {
 		let bucket = buckets.get(slug);
 		if (!bucket) {
-			bucket = { meta: null, files: new Map(), detail: new Map() };
+			bucket = { meta: null, files: new Map(), detail: new Map(), bodyImages: new Map() };
 			buckets.set(slug, bucket);
 		}
 		return bucket;
@@ -69,6 +91,11 @@ function collectBuckets(): Map<string, Bucket> {
 	for (const [path, load] of Object.entries(detailModules)) {
 		const { slug, filename } = pathParts(path);
 		bucketFor(slug).detail.set(filename, load);
+	}
+
+	for (const [path, load] of Object.entries(bodyImageModules)) {
+		const { slug, filename } = pathParts(path);
+		bucketFor(slug).bodyImages.set(filename, load);
 	}
 
 	return buckets;
@@ -93,6 +120,19 @@ function loadProjects(): ProjectItem[] {
 
 			for (const warning of checkDetailFiles(slug, filesInDir)) console.warn(warning);
 
+			// PHASE 5E: every image in the directory is a body-image candidate
+			// except the one meta.json already claimed as the card (result.meta.image)
+			// -- this is the whole rule, see CONTENT.md's "Body images" section. Not
+			// filtered at the glob/bucket level (bodyImageModules matches the same
+			// files as imageModules) because the card filename is only known here,
+			// after validation -- filtering earlier would mean duplicating
+			// validateProjectMeta's own logic for figuring out which file is the card.
+			const bodyImages: ProjectItem['bodyImages'] = {};
+			for (const [filename, load] of bucket.bodyImages) {
+				if (filename === result.meta.image) continue;
+				bodyImages[filename] = load;
+			}
+
 			items.push({
 				slug,
 				title: result.meta.title,
@@ -104,7 +144,8 @@ function loadProjects(): ProjectItem[] {
 				detail: {
 					en: bucket.detail.get(detailFilename('en')) ?? null,
 					ja: bucket.detail.get(detailFilename('ja')) ?? null
-				}
+				},
+				bodyImages
 			});
 		}
 	} catch (error) {
