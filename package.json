@@ -5,14 +5,15 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
-		"prebuild": "pnpm validate:art",
+		"prebuild": "pnpm validate:art && pnpm validate:projects",
 		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"lint": "eslint .",
-		"validate:art": "node scripts/validate-art-content.mjs"
+		"validate:art": "node scripts/validate-art-content.mjs",
+		"validate:projects": "node scripts/validate-projects-content.mjs"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
@@ -25,6 +26,7 @@
 		"eslint": "^10.5.0",
 		"eslint-plugin-svelte": "^3.19.0",
 		"globals": "^17.6.0",
+		"mdsvex": "0.12.8",
 		"postcss-custom-media": "^12.0.1",
 		"svelte": "^5.55.2",
 		"svelte-check": "^4.4.6",
@@ -37,6 +39,8 @@
 		"three": "^0.184.0"
 	},
 	"pnpm": {
-		"onlyBuiltDependencies": ["sharp"]
+		"onlyBuiltDependencies": [
+			"sharp"
+		]
 	}
 }

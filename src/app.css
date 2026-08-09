@@ -477,6 +477,7 @@ html {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 10px;
 }
 
 .panel-heading-block {
@@ -484,7 +485,47 @@ html {
   min-width: 0;
 }
 
-.panel-close {
+/* Follow-up to PHASE 2: moved out of the header's third row (below the
+   heading) into .popup-header-row itself, between .panel-heading-block and
+   .panel-close — sits in the same row as the heading, right-aligned, left
+   of the close button (now wrapped with the fullscreen toggle in
+   .panel-header-actions, below). A flex sibling there, not absolutely
+   positioned: .popup-header-row's own gap (above) and .panel-heading-block's
+   own min-width:0 (above) already do the work of keeping it clear of the
+   close button. flex-shrink:1 + min-width:0 (unlike .panel-close's
+   flex-shrink:0) let it give up space before the close button ever would;
+   overflow/ellipsis below is what it gives up space *into* — see the
+   narrow-width note on the @media (--mobile) rule for why ellipsis was
+   chosen over wrapping. */
+.project-view-all {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Legibility fix, not a .pill change — About's social links use the bare
+   .pill class and must stay exactly as they are. Two-class selector so
+   this wins over .pill regardless of stylesheet order. Restores the
+   var(--accent) foreground the pre-PHASE-2 .view-all link used (see git
+   history): .pill's own var(--muted) default reads as disabled/afterthought
+   for a header-level call-to-action, even though it's the right choice for
+   the low-key social links it was designed for. */
+.pill.project-view-all {
+  color: var(--accent);
+  border-color: var(--border-strong);
+}
+.pill.project-view-all:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* Back button (projects detail view only) reuses .panel-close's circular
+   icon-button styling verbatim rather than a third button style — see
+   PHASE 2 (projects panel navigation) report. */
+.panel-close,
+.panel-back-btn {
   background: transparent;
   border: 1px solid var(--border);
   color: var(--muted);
@@ -498,15 +539,34 @@ html {
   transition: border-color 0.2s, color 0.2s;
   flex-shrink: 0;
 }
-.panel-close:hover {
+.panel-close:hover,
+.panel-back-btn:hover {
   border-color: var(--accent);
   color: var(--accent);
 }
 
+/* Groups the fullscreen toggle and close button as one flex-shrink:0 unit
+   in .popup-header-row (desktop) / one grid cell (mobile, below) — plain
+   pass-through layout, no padding/border/background of its own, so
+   .panel-close's own box renders identically to before this wrapper
+   existed. .panel-fs-btn is display:none on desktop (below), so on desktop
+   this wrapper's rendered content and size are exactly .panel-close alone —
+   verified by diff, see the mobile-header-layout follow-up report. */
+.panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* No position/top/left here — previously position:absolute, needed only so
+   this could sit outside the header's row layout on mobile (see the old
+   PHASE 7 reasoning, now superseded). It's a normal flow child everywhere
+   it renders now (grouped with .panel-close in .panel-header-actions,
+   mobile placement below), and it never renders on desktop at all (see the
+   min-width:761px rule right below) — so an absolute/offset position was
+   dead weight in both cases, not a live cross-breakpoint behavior. */
 .panel-fs-btn {
-  position: absolute;
-  top: 8px;
-  left: 16px;
   background: transparent;
   border: 1px solid var(--border);
   color: var(--muted);
@@ -718,19 +778,40 @@ html {
   }
 }
 
+/* Hides the grid without unmounting it — Projects.svelte keeps the grid's
+   cards mounted while the detail view shows, so the card element that
+   opened a detail stays a live DOM node (see projectDetail.svelte.ts). */
+.project-grid-hidden {
+  display: none;
+}
+
+/* PHASE 2 (projects panel navigation): the card is a control that opens the
+   detail view in-panel, not a link out — it's a <button>, not an <a>, so it
+   needs the usual button-reset properties an anchor got for free (no native
+   background/cursor/text-align/font, and no browser default focus ring to
+   replace with :focus-visible), same reset .art-cell already applies for
+   the same reason. */
 .project-card {
   display: flex;
   flex-direction: column;
-  text-decoration: none;
+  background: transparent;
   border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
-  transition: border-color 0.2s, transform 0.2s;
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+  font: inherit;
   color: inherit;
+  transition: border-color 0.2s, transform 0.2s;
 }
 .project-card:hover {
   border-color: var(--border-strong);
   transform: translateY(-2px);
+}
+.project-card:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* <picture> has no box of its own by default — sizing the frame through it
@@ -788,17 +869,387 @@ html {
   border-radius: 10px;
 }
 
-.view-all {
-  display: inline-block;
-  margin-top: 10px;
-  font-size: 0.78rem;
-  color: var(--accent);
-  text-decoration: none;
-  letter-spacing: 0.06em;
-  opacity: 0.8;
-  transition: opacity 0.2s;
+/* PHASE 2 (projects panel navigation): media capped at 402px, the exact
+   width the loader's image glob fetches (src/lib/content/projects/loader.ts,
+   w:'402') — the detail view's body is wider than a grid card, but the
+   source image isn't, so the frame stays capped rather than stretching the
+   same derivative past its native resolution. No brightness/saturate
+   filter here (unlike .project-img): that muting exists to keep card text
+   readable over a background image; the detail view shows the image as
+   its own focal element, not a backdrop. */
+.project-detail-media {
+  max-width: 402px;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 16px;
 }
-.view-all:hover { opacity: 1; }
+
+.project-detail-media picture {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+}
+
+.project-detail-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.project-detail-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.project-detail-desc {
+  font-size: 0.82rem;
+  line-height: 1.65;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+
+.project-detail-link {
+  margin-top: 16px;
+}
+
+.project-detail-status {
+  font-size: 0.82rem;
+  line-height: 1.65;
+  color: var(--muted);
+  margin-top: 16px;
+}
+
+/* app.css is loaded as a plain global stylesheet (imported once from
+   +layout.svelte, not a component <style> block), so there's no Svelte
+   scoping to escape here -- plain descendant selectors under
+   .project-detail-markdown are enough to both reach into the mdsvex-
+   compiled detail component's output (a separate component instance,
+   see ProjectDetail.svelte) and keep these tag-level rules (h1, p, a, ...)
+   from leaking onto any other h1/p/a on the page.
+
+   PHASE 5A. Replaces the PHASE 3 system, which gave every element
+   (paragraph, list, heading, blockquote) the same 0.82rem/muted
+   treatment and one spacing value -- a new section and a new paragraph
+   were visually identical. Three things change that: a capped reading
+   measure, a 3-tier vertical rhythm, and three new content components
+   (StatBlock/Callout/SpecList, src/lib/components/content/) .svx files
+   import directly for metrics, key/value facts, and asides instead of
+   folding them into prose.
+
+   MEASURE: 55ch. Derived, not guessed -- rendered real EN/JA prose
+   samples in Space Grotesk at this element's own font-size (0.82rem =
+   13.12px at the 16px root) via headless Chrome and measured actual
+   glyph widths:
+     1ch @ 0.82rem Space Grotesk = 8.42px
+     55ch = ~463px  ->  ~74 EN characters/line, ~35 JA characters/line
+   EN 74 sits at the upper end of the classic 45-75-character measure
+   range (66 is the oft-cited ideal; 74 is still comfortable, not the
+   ragged edge of it). JA 35 sits mid-range in the ~30-40 characters/line
+   Japanese screen-typography guides give for body copy. Both numbers
+   come out of the *same* 55ch value because ch is defined by the
+   advance width of Space Grotesk's own '0' glyph (~0.51em here) --
+   Latin text is sized against that directly, while Japanese glyphs
+   render in a CJK fallback face at ~1em/character, so the same ch cap
+   produces two different, independently-reasonable line lengths per
+   script without any script-specific CSS.
+   The cap only binds once the panel is wide enough to exceed it
+   (~539px panel width: 463px cap + .panel-body's 38px*2 padding) -- at
+   the 320px panel MIN_W floor (244px content width) it's a no-op and
+   prose fills the available column same as before, so the measure
+   needs no separate narrow-width handling of its own. It also bounds
+   StatBlock/Callout/SpecList below, since they're rendered inside this
+   same element: the whole write-up shares one column instead of prose
+   plus full-bleed widgets. */
+.project-detail-markdown {
+  margin-top: 16px;
+  max-width: 55ch;
+}
+
+.project-detail-markdown h1,
+.project-detail-markdown h2,
+.project-detail-markdown h3 {
+  color: var(--text);
+  font-weight: 600;
+  line-height: 1.3;
+  margin-bottom: 8px;
+}
+/* h1 reuses .project-detail-title's own size: if a write-up ever needs
+   one, it reads as a peer of the piece's own title rather than a
+   fourth invented size (CONTENT.md discourages using h1 to repeat the
+   title, but the style stays ready for a legitimate h1 use). h2/h3
+   stay inside the Label range DESIGN.md already documents (0.78rem-
+   0.9rem) instead of adding new sizes to the scale. */
+.project-detail-markdown h1 { font-size: 1.05rem; }
+.project-detail-markdown h2 { font-size: 0.9rem; }
+.project-detail-markdown h3 { font-size: 0.8rem; }
+
+/* Vertical rhythm, three tiers, so a section break, a block break, and
+   a same-thought continuation each read differently:
+     14px  -- paragraph to paragraph (unchanged from PHASE 3): the
+              "still the same thought" gap.
+     20px  -- block to block: every block-level unit below (list,
+              blockquote, code block, and the three content components)
+              shares this bottom margin, so whichever one sits next to
+              a paragraph or another block, the gap is consistent.
+     28px  -- h3 margin-top: a minor break.
+     38px  -- h1/h2 margin-top: a section break, clearly larger than
+              any block-to-block gap so it doesn't read as "just
+              another block." */
+.project-detail-markdown * + h1,
+.project-detail-markdown * + h2 {
+  margin-top: 38px;
+}
+.project-detail-markdown * + h3 {
+  margin-top: 28px;
+}
+
+/* Lead paragraph: styled automatically, no markup the content author
+   has to add. This works because mdsvex compiles each .svx's top-level
+   markdown into elements that land as direct siblings inside this div
+   (Svelte components don't add a wrapper node around their markup), so
+   ":first-child" here genuinely is the write-up's opening element --
+   not a guess. If a write-up opens with something other than a plain
+   paragraph (a heading, a component), the selector simply doesn't
+   match anything and no lead styling is applied anywhere -- a safe,
+   silent degrade rather than mis-styling the wrong element. Size stays
+   inside the documented Label range (0.78rem-0.9rem) rather than
+   inventing a new one for this single case. */
+.project-detail-markdown > p:first-child {
+  font-size: 0.9rem;
+  line-height: 1.7;
+  color: var(--text);
+  margin-bottom: 20px;
+}
+
+.project-detail-markdown p {
+  font-size: 0.82rem;
+  line-height: 1.65;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+
+.project-detail-markdown ul,
+.project-detail-markdown ol {
+  font-size: 0.82rem;
+  line-height: 1.65;
+  color: var(--muted);
+  margin-bottom: 20px;
+  padding-left: 1.2em;
+}
+
+.project-detail-markdown li {
+  margin-bottom: 4px;
+}
+
+.project-detail-markdown a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 0.2s;
+}
+.project-detail-markdown a:hover {
+  color: var(--text);
+}
+
+/* Space Grotesk, not monospace: DESIGN.md's Single Voice Rule scopes
+   monospace strictly to ASCII-grid rendering (the intro readout, the
+   sphere canvas), never UI copy -- markdown code is panel content, so it
+   stays in the body font and reads as "code" via the background chip
+   alone, the same idiom .tag already uses. PHASE 5A fix: the PHASE 3
+   rules never actually set font-family here, so the browser's UA
+   stylesheet (code/pre default to font-family: monospace) was winning
+   silently -- code blocks were rendering in monospace despite the
+   comment above claiming otherwise. Explicit var(--font) below closes
+   that gap. */
+.project-detail-markdown code {
+  font-family: var(--font);
+  font-size: 0.78rem;
+  background: var(--surface-soft);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+.project-detail-markdown pre {
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin-bottom: 20px;
+}
+.project-detail-markdown pre code {
+  font-family: var(--font);
+  background: none;
+  border-radius: 0;
+  padding: 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.project-detail-markdown blockquote {
+  border-left: 2px solid var(--border-strong);
+  padding-left: 12px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.65;
+  margin-bottom: 20px;
+}
+
+.project-detail-markdown > :last-child {
+  margin-bottom: 0;
+}
+
+/* ─── Stat block (src/lib/components/content/StatBlock.svelte) ──
+   For reported numbers (metrics, results) -- replaces bullet lists of
+   figures, which read as prose when the actual point is to scan values
+   fast. Value reuses .project-detail-title's own size/weight
+   (1.05rem/600): these are the second-most-important numbers on the
+   page after the title, so they carry the title's weight rather than
+   an invented one. Label reuses the eyebrow idiom (0.65rem/500/0.18em/
+   uppercase/accent) already used everywhere else in the system as a
+   small caption under something larger. Each item keeps its own
+   hairline border/radius (var(--border), 8px) rather than sitting on
+   one shared card -- matches the flat, bordered-cell idiom
+   .project-card already uses, not a new shadowed surface.
+   Reflow: container-type: inline-size on the block itself, not just
+   inherited from .panel-body -- the column count needs to react to the
+   stat block's own rendered width, which the 55ch measure cap already
+   constrains independently of how wide the panel itself is (especially
+   in fullscreen, where .panel-body's width can far exceed the measure).
+   Below 320px it drops to one column: .panel-body's 320px MIN_W floor
+   minus its 76px of horizontal padding leaves 244px of content width,
+   so this tier is really "at or near the panel's absolute minimum,"
+   where two ~115px value/label columns would start to crowd. */
+.stat-block {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px 16px;
+  container-type: inline-size;
+  margin-bottom: 20px;
+}
+
+.stat-block-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-width: 0;
+}
+
+.stat-block-value {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.stat-block-label {
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+@container (max-width: 320px) {
+  .stat-block {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─── Spec list (src/lib/components/content/SpecList.svelte) ────
+   Dense key/value facts (model, image size, epochs, stack) -- prose
+   buries these, and a stat block would overstate their weight (they're
+   facts to scan, not results to headline). Real dl/dt/dd, grouped in a
+   div per row (valid per the HTML dl content model -- dl may contain
+   div wrappers around dt/dd pairs), since this genuinely is
+   definition-list data, not styled-div lookalike markup. The key
+   column caps at 34% so a long value is never crowded by a short key;
+   both columns wrap their own text on overflow, which is what lets
+   this degrade at the narrowest panel width without a container query
+   the way the two grid-based components need -- there's no track count
+   to re-flow, just two columns that keep wrapping. */
+.spec-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.spec-list-row {
+  display: grid;
+  grid-template-columns: minmax(0, 34%) 1fr;
+  gap: 4px 12px;
+  align-items: baseline;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.spec-list-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.spec-list-key {
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.spec-list-value {
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+/* ─── Callout (src/lib/components/content/Callout.svelte) ───────
+   Asides, caveats, and honest limitations -- one visual variant, since
+   these write-ups need one register for "this is a side note," not a
+   taxonomy of severities (info/warning/danger). The label text
+   (defaults to "Note"; a write-up can pass label="Caveat" or
+   label="Limitation") is the only thing that varies -- the box itself
+   never changes. Background reuses var(--surface-soft), the same
+   tertiary-surface token the code block above already uses for "a
+   quiet, contained unit of content"; the left border echoes
+   blockquote's own left-border idiom one step darker
+   (var(--border-strong)), which is what visually separates "boxed,
+   labeled aside" from "plain inline quote" without inventing a new
+   border color for either. No box-shadow -- Flat-By-Default, same as
+   everywhere else in the system. */
+.callout {
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+}
+
+.callout-label {
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+
+.callout-body p {
+  font-size: 0.82rem;
+  line-height: 1.65;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+.callout-body > :last-child {
+  margin-bottom: 0;
+}
 
 /* ─── Experience ─────────────────────────────────────── */
 .exp-item {
@@ -877,7 +1328,10 @@ html {
    .popup-header-row above), width: fit-content keeps the segmented-control
    pill hugging its own content instead of stretching to the header's full
    width, and margin-top replaces the old margin-bottom (PHASE 3: spacing
-   before .art-grid in body flow) with spacing below the heading row instead. */
+   before .art-grid in body flow) with spacing below the heading row instead.
+   PHASE 2 follow-up: .project-view-all moved out of this third-row slot
+   into .popup-header-row itself (see its own rule above) — this is back to
+   an .art-filter-only rule, unchanged from before that phase. */
 .art-filter {
   align-self: flex-start;
   width: fit-content;
@@ -1438,20 +1892,23 @@ html {
     to   { opacity: 1; transform: translateY(0) scale(1); }
   }
 
-  /* PHASE 7: two explicit rows instead of the old fs-btn-band +
-     60px-inset-heading + filter-below stack. .popup-header-row carries only
-     display:flex/justify-content/align-items (no background, padding,
+  /* PHASE 7, superseded by the mobile-header-layout follow-up below: two
+     explicit rows instead of the old fs-btn-band + 60px-inset-heading +
+     filter-below stack. .popup-header-row carries only
+     display:flex/justify-content/align-items/gap (no background, padding,
      margin, or border), so display:contents here drops nothing visually —
-     its two children (.panel-heading-block, .panel-close) become direct
-     grid items of .popup-header, placed alongside .art-filter.
-     .panel-fs-btn stays position:absolute (unchanged) rather than becoming
-     a grid item: it doesn't need to, since it's already excluded from grid
-     track sizing (absolutely positioned children are ignored for that, same
-     as in flex), and .popup-header keeps position:relative (Phase 1) as its
-     containing block regardless of display:grid. Its own top:8px/44px-tall
-     box now lines up exactly with row 1: padding-block-start is 8px and
-     .panel-close (the only real grid item in row 1) is also 44px tall, so
-     row 1 spans the identical 8px–52px band .panel-fs-btn already occupies. */
+     its children become direct grid items of .popup-header.
+     Row 1 is now the window-chrome row: .panel-back-btn (left, projects
+     detail view only) and .panel-header-actions (right — the fullscreen
+     toggle grouped with the close button, see the desktop rule above) both
+     sit here. .panel-fs-btn is no longer position:absolute (see its own
+     rule above) — it's a normal flow child of .panel-header-actions now,
+     which is what makes sharing row 1 with .panel-back-btn possible without
+     the old top-left collision this comment used to warn about.
+     Row 2 is the content row: .panel-heading-block alone (no control beside
+     it — the back button moved to row 1) and .art-filter / .project-view-all
+     (right, mutually exclusive by section) — unchanged from before this
+     follow-up. */
   .popup-header {
     padding: 8px 18px 8px;
     display: grid;
@@ -1464,7 +1921,13 @@ html {
     display: contents;
   }
 
-  .panel-close {
+  .panel-back-btn {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: start;
+  }
+
+  .panel-header-actions {
     grid-column: 2;
     grid-row: 1;
     justify-self: end;
@@ -1479,6 +1942,15 @@ html {
      .popup-header's align-items:center — the stacked-layout margin-top:12px
      (Phase 4/6) doesn't apply to a side-by-side row. */
   .art-filter {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: end;
+    margin-top: 0;
+  }
+
+  /* Reuses .art-filter's exact slot: the two are mutually exclusive by
+     section, never both rendered. */
+  .project-view-all {
     grid-column: 2;
     grid-row: 2;
     justify-self: end;

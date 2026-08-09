@@ -11,15 +11,17 @@
 	import Contact from '$lib/components/sections/Contact.svelte';
 	import ArtLightbox from '$lib/components/ArtLightbox.svelte';
 	import { lightbox } from '$lib/lightbox.svelte.js';
-	import { navItems, aboutPreloadImages, projectPreloadImages } from '$lib/portfolio-data.js';
+	import { navItems, aboutPreloadImages } from '$lib/portfolio-data.js';
 	import { initSphere, HOTSPOT_DEFS } from '$lib/sphere.js';
 	import { viewport } from '$lib/viewport.svelte.js';
 	import { timeline } from '$lib/timeline.svelte.js';
 	import { PANEL_GUTTER, PANEL_MAX_W, PANEL_H_GUTTER } from '$lib/panelGeometry.js';
 	import { createDraggablePanel, RESIZE_DIRS } from '$lib/createDraggablePanel.svelte.js';
-	import { getLabel, getHeading, getArt, getUi } from '$lib/content.js';
+	import { getLabel, getHeading, getArt, getUi, getProjects } from '$lib/content.js';
 	import { artPieces } from '$lib/content/art/loader.js';
+	import { projectItems } from '$lib/content/projects/loader.js';
 	import { artFilter, type ArtFilter } from '$lib/artFilter.svelte.js';
+	import { projectDetail } from '$lib/projectDetail.svelte.js';
 	import { panelScrollFade } from '$lib/actions/panelScrollFade.js';
 	import type { SectionId, Lang, HotspotState } from '$lib/types.js';
 
@@ -49,6 +51,7 @@
 	// ── Derived ────────────────────────────────────────────
 	const ui = $derived(getUi(lang));
 	const artContent = $derived(getArt(lang));
+	const projectsContent = $derived(getProjects(lang));
 
 	// ── Art filter (header control; Art.svelte reads the result) ──
 	const artFilterOptions: ArtFilter[] = ['all', 'hand-drawn', 'digital'];
@@ -136,6 +139,14 @@
 		if (panelOpen && !panel.initialized) panel.init();
 	});
 
+	// Projects' sub-view is a navigational position, not a preference (unlike
+	// artFilter) -- reset whenever the user isn't looking at Projects at all.
+	// This one check covers both panel close (closePanel sets currentSection
+	// to null) and switching to a different section.
+	$effect(() => {
+		if (currentSection !== 'projects') projectDetail.reset();
+	});
+
 	// ── Language ───────────────────────────────────────────
 	function toggleLang(): void {
 		lang = lang === 'en' ? 'ja' : 'en';
@@ -144,7 +155,8 @@
 
 <svelte:head>
 	<!-- About/Projects images preload unconditionally: single derivative per format
-	     (see portfolio-data.ts), so one <link> per format present in .sources covers
+	     (see portfolio-data.ts for About's pfpImage, content/projects/loader.ts for
+	     each project's image), so one <link> per format present in .sources covers
 	     the avif/webp candidates the <picture> would pick. imagetools omits a fallback
 	     <source> when a format has only one width (redundant with the plain <img> tag),
 	     so .sources never includes the original jpeg/png here -- the extra href-based
@@ -157,11 +169,11 @@
 		<link rel="preload" as="image" href={picture.img.src} />
 	{/each}
 
-	{#each projectPreloadImages as picture (picture.img.src)}
-		{#each Object.entries(picture.sources) as [format, srcset] (format)}
+	{#each projectItems as project (project.slug)}
+		{#each Object.entries(project.image.sources) as [format, srcset] (format)}
 			<link rel="preload" as="image" imagesrcset={srcset} type={`image/${format}`} />
 		{/each}
-		<link rel="preload" as="image" href={picture.img.src} />
+		<link rel="preload" as="image" href={project.image.img.src} />
 	{/each}
 
 	<!-- Art grid thumbnails: full-size images stay lazy (ArtLightbox only mounts
@@ -181,6 +193,7 @@
 <svelte:window onkeydown={(e) => {
 	if (e.key !== 'Escape') return;
 	if (lightbox.piece) { lightbox.close(); return; }
+	if (projectDetail.selectedSlug !== null) { projectDetail.back(); return; }
 	if (panelOpen) closePanel();
 }} />
 
@@ -343,30 +356,55 @@
 		{/each}
 
 		<div class="popup-header">
-			<button class="panel-fs-btn" onclick={() => panelFullscreen = !panelFullscreen} aria-label="Toggle full screen">
-				<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor"
-					fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-					{#if panelFullscreen}
-						<polyline points="6 9 12 15 18 9" />
-					{:else}
-						<polyline points="18 15 12 9 6 15" />
-					{/if}
-				</svg>
-			</button>
 			<div class="popup-header-row">
+				{#if currentSection === 'projects' && projectDetail.selectedSlug !== null}
+					<button
+						class="panel-back-btn"
+						onclick={() => projectDetail.back()}
+						aria-label={projectsContent.backLabel}
+					>
+						<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor"
+							fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<line x1="19" y1="12" x2="5" y2="12" />
+							<polyline points="12 19 5 12 12 5" />
+						</svg>
+					</button>
+				{/if}
 				{#if currentSection}
 					<div class="panel-heading-block">
 						<p class="panel-eyebrow">{getLabel(currentSection, lang)}</p>
 						<h2 class="panel-heading">{getHeading(currentSection, lang)}</h2>
 					</div>
 				{/if}
-				<button class="panel-close" onclick={closePanel} aria-label={ui.closePanelLabel}>
-					<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor"
-						fill="none" stroke-width="2" stroke-linecap="round">
-						<line x1="18" y1="6"  x2="6"  y2="18" />
-						<line x1="6"  y1="6"  x2="18" y2="18" />
-					</svg>
-				</button>
+				{#if currentSection === 'projects' && projectDetail.selectedSlug === null}
+					<a
+						href="https://github.com/Pascaruuu?tab=repositories"
+						target="_blank"
+						rel="noopener noreferrer"
+						class="pill project-view-all"
+					>
+						{projectsContent.viewAll}
+					</a>
+				{/if}
+				<div class="panel-header-actions">
+					<button class="panel-fs-btn" onclick={() => panelFullscreen = !panelFullscreen} aria-label="Toggle full screen">
+						<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor"
+							fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							{#if panelFullscreen}
+								<polyline points="6 9 12 15 18 9" />
+							{:else}
+								<polyline points="18 15 12 9 6 15" />
+							{/if}
+						</svg>
+					</button>
+					<button class="panel-close" onclick={closePanel} aria-label={ui.closePanelLabel}>
+						<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor"
+							fill="none" stroke-width="2" stroke-linecap="round">
+							<line x1="18" y1="6"  x2="6"  y2="18" />
+							<line x1="6"  y1="6"  x2="18" y2="18" />
+						</svg>
+					</button>
+				</div>
 			</div>
 			{#if currentSection === 'art' && artPieces.length > 0}
 				<div class="art-filter segmented-control" role="group" aria-label={artContent.filterLabel}>

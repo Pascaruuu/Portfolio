@@ -1,0 +1,30 @@
+<script>
+	import SpecList from '$lib/components/content/SpecList.svelte';
+	import Callout from '$lib/components/content/Callout.svelte';
+</script>
+
+AUPP-eCampus is a full course platform, built end to end: courses, modules, assignments with grading, student enrollment, and paid courses, on a React frontend talking to a Flask API. The school and department structure inside it isn't a generic placeholder — the Khmer translations name AUPP's actual schools (business, digital technology, liberal arts), because this was built around a real university's structure, not a stand-in "Course A / Course B" demo.
+
+## Courses, end to end
+
+An instructor can create a course, attach modules and assignments to it, and grade what comes back in; a student browses a catalog, enrolls, and works through the material from a dashboard; an admin manages the majors, tags, and user accounts underneath all of that. Some courses are free and some are paid, and paid enrollment meant handling the case a checkout always creates — a purchase that's been started but hasn't finished yet. A closed tab mid-payment shouldn't leave someone charged with no course access, and it shouldn't let them retry into a duplicate charge either. The interface itself is bilingual too — Khmer and English, switchable anywhere in the app through a proper i18n setup, not fixed into one document the way a printed form would be.
+
+## What it's built on
+
+Login doesn't manage its own passwords — it hands credentials off to the university's existing identity system and trusts the token that comes back, instead of this project owning yet another set of user credentials.
+
+<SpecList items={[
+	{ key: 'Backend', value: 'Flask + MongoDB' },
+	{ key: 'Frontend', value: 'React 18 + i18next' },
+	{ key: 'Cache', value: 'Redis' },
+	{ key: 'Payments', value: 'PayPal' },
+	{ key: 'Media', value: 'Cloudinary, S3-compatible storage' }
+]} />
+
+<Callout label="Limitation">
+
+That "S3-compatible storage" is doing some hedging — the codebase actually wires up three separate providers for it (AWS S3, Cloudflare R2, and Supabase storage) behind one upload service, on top of Cloudinary for course media. That's more storage flexibility than a single app usually needs, and more provider credentials than one project should have to keep valid at the same time.
+
+</Callout>
+
+Most of what made this hard wasn't any single feature, it was keeping that many external services — a database, a cache, a payment processor, three storage backends, a video host for course lectures, and an identity API — all correctly configured and talking to each other at once. A simpler stack would have been easier to keep working, even if it meant fewer of the pieces this one actually has.

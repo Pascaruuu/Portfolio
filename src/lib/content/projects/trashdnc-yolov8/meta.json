@@ -1,0 +1,14 @@
+{
+	"title": "TrashDnC-YOLOv8",
+	"description": {
+		"en": "Trash detection and classification system using YOLOv8 for automated waste management.",
+		"ja": "YOLOv8を使用した自動廃棄物管理のためのゴミ検出・分類システム。"
+	},
+	"tags": {
+		"en": ["YOLOv8", "Computer Vision", "Python"],
+		"ja": ["YOLOv8", "コンピュータビジョン", "Python"]
+	},
+	"url": "https://github.com/Pascaruuu/TrashDnC-YOLOv8",
+	"image": "train_batch1.jpg",
+	"date": "2026-07-20"
+}

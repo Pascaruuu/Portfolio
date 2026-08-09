@@ -1,0 +1,56 @@
+<script>
+	import StatBlock from '$lib/components/content/StatBlock.svelte';
+	import SpecList from '$lib/components/content/SpecList.svelte';
+	import Callout from '$lib/components/content/Callout.svelte';
+</script>
+
+This one started from a simple annoyance: recycling only works if the material gets sorted correctly, and asking people to tell glass from "other" plastic at a glance is a bad system to rely on. I wanted to see how far a small object detector could go at automating that first, error-prone classification step.
+
+## Dataset
+
+The training data comes from [TACO](https://github.com/pedropro/TACO), a public dataset of trash photographed in its actual surroundings rather than staged studio shots. I downloaded it, remapped the labels into six categories — `glass`, `metal`, `paper`, `plastic`, `other`, and `unknown` (unknown covers anything unidentifiable or unlabeled) — and rebuilt the folder structure YOLO expects.
+
+## Getting the data into shape
+
+Training itself wasn't the hard part — getting the dataset into a shape the model could actually learn from was. TACO's raw classes were unevenly distributed, so I used `albumentations` (horizontal flips, brightness/contrast jitter, small shift-scale-rotate transforms) to synthesize extra examples for underrepresented classes until they roughly matched the largest one, then capped the total at 2,000 images and split 80/20 for train/val. Going back through my own notebook, I can see that split-augment-reduce sequence redone more than once — re-shuffling, re-balancing, clearing the label cache and re-splitting again — which tells me the pipeline wasn't reproducible enough on the first attempt.
+
+## Training setup
+
+The model is a YOLOv8n — the smallest variant in Ultralytics' YOLOv8 family — trained locally on a CUDA GPU.
+
+<SpecList items={[
+	{ key: 'Model', value: 'YOLOv8n' },
+	{ key: 'Image size', value: '416×416' },
+	{ key: 'Batch size', value: '8' },
+	{ key: 'Epochs', value: '50' },
+	{ key: 'Hardware', value: 'CUDA GPU (torch 2.5.1+cu121)' }
+]} />
+
+## Results
+
+On the held-out validation set, the final run lands at:
+
+<StatBlock items={[
+	{ value: '0.982', label: 'Precision' },
+	{ value: '0.933', label: 'Recall' },
+	{ value: '0.969', label: 'mAP@50' },
+	{ value: '0.893', label: 'mAP@50-95' }
+]} />
+
+mAP measures how well the predicted boxes line up with the ground truth across confidence and overlap thresholds; the 50-95 figure is the stricter version, averaged over a range of overlap thresholds instead of just one.
+
+I also set up a small [demo on Hugging Face Spaces](https://huggingface.co/spaces/Khunratanak/Waste_Sorter) so the model could be tried without cloning the repo or setting up a training environment.
+
+### Where it breaks down
+
+The confusion matrix shows where that number is actually coming from: five of the six classes land between 94% and 99% recall.
+
+<Callout label="Limitation">
+
+`unknown` drops to 81%, and most of what it misses gets predicted as background rather than as another material. That tracks — `unknown` is a catch-all by definition, so it has the least visual consistency to learn from, and the model tends to just not flag it rather than guess wrong.
+
+</Callout>
+
+## What I'd change
+
+If I revisited this, I'd version the dataset-prep scripts properly instead of rerunning the same notebook cells with different parameters each time, and I'd either drop `unknown` as a target class or gather enough examples specifically for it to justify keeping it.

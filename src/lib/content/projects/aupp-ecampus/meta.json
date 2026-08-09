@@ -1,0 +1,14 @@
+{
+	"title": "AUPP-eCampus",
+	"description": {
+		"en": "Campus management platform with student portal and administrative features.",
+		"ja": "学生ポータルと管理機能を備えたキャンパス管理プラットフォーム。"
+	},
+	"tags": {
+		"en": ["Education", "Web App", "PHP"],
+		"ja": ["教育", "Webアプリ", "PHP"]
+	},
+	"url": "https://github.com/Pascaruuu/AUPP-eCampus",
+	"image": "aupp_ecampus.png",
+	"date": "2026-01-06"
+}

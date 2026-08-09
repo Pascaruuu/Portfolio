@@ -1,7 +1,6 @@
 import { languageStrings } from './language-strings.js';
 import {
 	contactEmail,
-	projects as projectMeta,
 	skillItems,
 	socialLinks
 } from './portfolio-data.js';
@@ -47,19 +46,7 @@ export function getSkills(lang: Lang): SkillsContent {
 }
 
 export function getProjects(lang: Lang): ProjectsContent {
-	const projects = languageStrings[lang].sections.projects;
-
-	return {
-		label: projects.label,
-		heading: projects.heading,
-		items: projects.items.map((project, index) => ({
-			...project,
-			title: projectMeta[index]?.title ?? '',
-			img: projectMeta[index]!.img,
-			url: projectMeta[index]?.url ?? ''
-		})),
-		viewAll: projects.viewAll
-	};
+	return languageStrings[lang].sections.projects;
 }
 
 export function getExperience(lang: Lang): ExperienceContent {

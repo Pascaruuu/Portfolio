@@ -1,10 +1,5 @@
 import type { Lang } from './types.js';
 
-interface ProjectStrings {
-	desc: string;
-	tags: string[];
-}
-
 interface ExperienceStrings {
 	title: string;
 	desc: string;
@@ -24,8 +19,10 @@ interface LanguageStrings {
 		projects: {
 			label: string;
 			heading: string;
-			items: ProjectStrings[];
 			viewAll: string;
+			viewRepo: string;
+			backLabel: string;
+			loadingDetail: string;
 		};
 		experience: {
 			label: string;
@@ -92,21 +89,10 @@ export const languageStrings: Record<Lang, LanguageStrings> = {
 			projects: {
 				label: 'Projects',
 				heading: 'My Work',
-				items: [
-					{
-						desc: 'Trash detection and classification system using YOLOv8 for automated waste management.',
-						tags: ['YOLOv8', 'Computer Vision', 'Python']
-					},
-					{
-						desc: 'Invoice management system for jewelry businesses with inventory tracking.',
-						tags: ['Invoice', 'Business', 'PHP']
-					},
-					{
-						desc: 'Campus management platform with student portal and administrative features.',
-						tags: ['Education', 'Web App', 'PHP']
-					}
-				],
-				viewAll: 'View all repositories →'
+				viewAll: 'View all repositories →',
+				viewRepo: 'View repository',
+				backLabel: 'Back to projects',
+				loadingDetail: 'Loading details…'
 			},
 			experience: {
 				label: 'Experience',
@@ -183,21 +169,10 @@ export const languageStrings: Record<Lang, LanguageStrings> = {
 			projects: {
 				label: 'プロジェクト',
 				heading: '制作物',
-				items: [
-					{
-						desc: 'YOLOv8を使用した自動廃棄物管理のためのゴミ検出・分類システム。',
-						tags: ['YOLOv8', 'コンピュータビジョン', 'Python']
-					},
-					{
-						desc: '在庫追跡機能を備えたジュエリービジネス向けの請求書管理システム。',
-						tags: ['請求書', 'ビジネス', 'PHP']
-					},
-					{
-						desc: '学生ポータルと管理機能を備えたキャンパス管理プラットフォーム。',
-						tags: ['教育', 'Webアプリ', 'PHP']
-					}
-				],
-				viewAll: 'すべてのリポジトリを見る →'
+				viewAll: 'すべてのリポジトリを見る →',
+				viewRepo: 'リポジトリを見る',
+				backLabel: 'プロジェクト一覧に戻る',
+				loadingDetail: '詳細を読み込み中…'
 			},
 			experience: {
 				label: '経験',

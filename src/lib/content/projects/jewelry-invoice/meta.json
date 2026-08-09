@@ -1,0 +1,14 @@
+{
+	"title": "Jewelry-Invoice",
+	"description": {
+		"en": "Invoice management system for jewelry businesses with inventory tracking.",
+		"ja": "在庫追跡機能を備えたジュエリービジネス向けの請求書管理システム。"
+	},
+	"tags": {
+		"en": ["Invoice", "Business", "PHP"],
+		"ja": ["請求書", "ビジネス", "PHP"]
+	},
+	"url": "https://github.com/Pascaruuu/Jewelry-Invoice",
+	"image": "jewelry_invoice.png",
+	"date": "2026-04-24"
+}
