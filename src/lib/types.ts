@@ -1,5 +1,3 @@
-import type { Picture } from '@sveltejs/enhanced-img';
-
 export const sectionIds = ['about', 'skills', 'projects', 'experience', 'art', 'contact'] as const;
 export type SectionId = typeof sectionIds[number];
 export type Lang = 'en' | 'ja';
@@ -8,14 +6,6 @@ export type Lang = 'en' | 'ja';
 export interface SkillItem {
 	name: string;
 	pct: number;
-}
-
-export interface ProjectItem {
-	title: string;
-	desc: string;
-	tags: string[];
-	img: Picture;
-	url: string;
 }
 
 export interface ExperienceItem {
@@ -39,8 +29,10 @@ export interface SkillsContent {
 export interface ProjectsContent {
 	label: string;
 	heading: string;
-	items: ProjectItem[];
 	viewAll: string;
+	viewRepo: string;
+	backLabel: string;
+	loadingDetail: string;
 }
 
 export interface ExperienceContent {

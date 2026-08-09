@@ -178,7 +178,7 @@ Two `.svelte.ts` rune modules are clean single sources of truth: `viewport.svelt
 
 ## 12. Build / tooling
 
-`vite.config.ts`: `sveltekit()` + the custom `generatedBreakpoints()` plugin + `postcssCustomMedia()`. `svelte.config.js`: `adapter-auto`, runes forced on. `package.json` scripts: `dev`, `build`, `preview`, `prepare`, `check` (svelte-kit sync + svelte-check), `check:watch`, `lint`.
+`vite.config.ts`: `sveltekit()` + the custom `generatedBreakpoints()` plugin + `postcssCustomMedia()`. `svelte.config.js`: `adapter-auto`, runes forced on, plus a `[vitePreprocess(), mdsvex()]` preprocess chain scoped to the `.svx` extension only — compiles per-project detail write-ups (`src/lib/content/projects/*/detail.{en,ja}.svx`) into lazily-loaded Svelte components (see `src/lib/content/projects/loader.ts`, `types.ts`'s `DetailLoader`, and `ProjectDetail.svelte`'s load-state handling). `package.json` scripts: `dev`, `build`, `preview`, `prepare`, `check` (svelte-kit sync + svelte-check), `check:watch`, `lint`.
 
 **⚠ Flag — no `tsc` script.** CLAUDE.md mandates `pnpm tsc --noEmit`, which works only via pnpm's binary-fallback resolution, not an explicit script contract. Add a script to make the verification gate real.
 

@@ -1,0 +1,35 @@
+<script>
+	import SpecList from '$lib/components/content/SpecList.svelte';
+	import Callout from '$lib/components/content/Callout.svelte';
+</script>
+
+This one was built for my family's jewelry business in Cambodia, and their invoices needed two things most off-the-shelf software doesn't do: output in Khmer and English on the same document, and pricing that depends on the day's gold market price instead of a fixed catalog price. I built this to handle both directly rather than work around a tool that assumes neither.
+
+## Gold pricing, not generic invoicing
+
+Each item's price comes from its weight, its gold purity, and whatever the market price is that day — weight times gold-mix percentage times market price, plus a separate labor charge per piece. Purity isn't fixed either: the shop prices in 75%, 80%, 90%, and 100% gold, set per item. One piece of business logic I just had to encode as a literal rule rather than derive: the shop rounds a total up past a 0.7 decimal threshold and down below it, not the usual round-to-nearest-0.5, so the code has an explicit `>= 0.7` check instead of a general rounding function.
+
+## Two languages, one document
+
+The bilingual part isn't a language switch in the UI — the invoice itself is bilingual, every label printed in Khmer with the English directly alongside it on the same line, because that's the document that goes to the customer. The editing screens work the same way: Khmer first, English second, on every field in the app, not just the printed output. The printed invoice also carries a QR code for ABA Pay or Wing, the two payment apps customers there actually use.
+
+## Why a desktop app
+
+This runs as an Electron app rather than a web app because everything about it is local. It saves finished invoices straight to a folder the shop picks once in Settings, organizes them into a subfolder per client automatically, and writes both an HTML copy (for the built-in preview) and a PDF (for printing) for each one — none of that needs a server. The same offline-first goal reaches down to the framework itself: there's no bundler or build step, React and Babel ship as local files in the repo, and every component compiles from JSX to JS live in the browser through a `type="text/babel"` script tag instead of a webpack or Vite pipeline.
+
+<SpecList items={[
+	{ key: 'Platform', value: 'Electron (Windows)' },
+	{ key: 'Frontend', value: 'React 18, in-browser Babel' },
+	{ key: 'Storage', value: 'localStorage + filesystem' },
+	{ key: 'Output', value: 'HTML + PDF per invoice' }
+]} />
+
+## What was hard
+
+Most of the hard parts weren't the invoicing logic, they were Electron itself. Getting the built-in preview to load a saved HTML file inside an iframe meant turning off `webSecurity` in the main process — acceptable for a single-purpose offline tool, not something I'd want near a browser context. Packaging it as a Windows installer surfaced an actual bug in electron-builder's own file-writing step: an intermittent `EBUSY` error from Windows still holding the previous build's executable locked. Rather than wait on an upstream fix, I patched the dependency directly with a small postinstall script that retries the write with backoff instead.
+
+<Callout label="Limitation">
+
+There's no real database behind any of this — saved invoices are just HTML and PDF files in per-client folders, and the saved-files browser gets each invoice's total by regex-matching the pattern back out of its own saved HTML rather than reading it from anywhere structured. It works because one shop's invoice volume is small, but it's the kind of shortcut that wouldn't hold up if more than one till needed to see the same data.
+
+</Callout>
