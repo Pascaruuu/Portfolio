@@ -33,8 +33,7 @@ const float LAND_GLYPH_FLOOR_INDEX = ${ASCII_LAND_START_INDEX.toFixed(1)}; // de
 const float LAND_GLYPH_CEILING_INDEX = ${ASCII_LAND_END_INDEX.toFixed(1)}; // derived from ASCII_LAND_END_INDEX in constants.ts (land segment end); land can never select an ocean-segment index
 const float LAND_SEGMENT_WIDTH = LAND_GLYPH_CEILING_INDEX - LAND_GLYPH_FLOOR_INDEX; // land index range, used to scale erosion into glyph-index steps
 const float LAND_ELEVATION_CEILING = 0.18; // measured (500k-sample fbm survey): ~p95 of land elevation above sea level; rare highest ridges saturate here so the rest of land spreads across the full segment
-const float RIM_ONSET_NV = 0.835; // N·V where the rim band begins; converted from the old (aspect-broken) distFromCenter=0.55 onset via NV=sqrt(1-r^2), the orthographic sphere approximation
-const float RIM_DISCARD_NV = 0.30; // N·V below which land discards entirely; converted the same way from the effective distFromCenter (~0.954) where the old edgeFactor reached its 0.97 cutoff
+const float RIM_ONSET_NV = 0.30; // N·V where the rim band begins; chosen to match the removed discard threshold below, so erosion's fade spans exactly the band that used to render nothing
 
 float hash3(vec3 p) {
   p = fract(p * vec3(443.897, 441.423, 437.195));
@@ -141,8 +140,7 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
 
   bool isOcean = sphereHit && terrain < OCEAN_SEA_LEVEL; // below-sea-level cells on the sphere bypass the luma ramp/discard; land and background paths are untouched
 
-  if (!sphereHit && luma < 0.12) discard; // background only -- land and ocean always render at least their floor glyph
-  if (sphereHit && !isOcean && nv < RIM_DISCARD_NV) discard; // land vanishes only within RIM_DISCARD_NV of the true limb (grazing incidence); erosion elsewhere just steps the glyph down instead
+  if (!sphereHit && luma < 0.12) discard; // background only -- land and ocean always render at least their floor glyph, matching ocean all the way to the silhouette
 
   float charIndex;
   float alpha;
