@@ -171,7 +171,7 @@
 		camera = new THREE.PerspectiveCamera(65, viewport.vw / Math.max(1, viewport.vh), 1, 2000);
 		camera.position.set(0, 0, 0);
 
-		streaks = createLightspeedStreaks(scene);
+		streaks = createLightspeedStreaks(scene, renderer);
 
 		const ascii = createAsciiRenderer(renderer, scene, camera, false);
 		composer = ascii.composer;
@@ -222,6 +222,7 @@
 		composer.setSize(vw, vh);
 		camera.aspect = vw / Math.max(1, vh);
 		camera.updateProjectionMatrix();
+		streaks?.resize();
 	});
 </script>
 

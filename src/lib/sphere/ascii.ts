@@ -79,8 +79,15 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   vec2 cellUV = fract(uv * cellCount);
   vec2 cellCenter = (cell + 0.5) / cellCount;
 
-  vec4 scene = texture2D(inputBuffer, cellCenter);
-  float luminance = dot(scene.rgb, vec3(0.299, 0.587, 0.114));
+  // 3x3 box average over the cell (9 fixed taps at cell thirds) instead of one centre texel, so a feature narrower than a cell contributes proportional coverage instead of an all-or-nothing hit.
+  float luminance = 0.0;
+  for (int sx = 0; sx < 3; sx++) {
+    for (int sy = 0; sy < 3; sy++) {
+      vec2 tapUV = (cell + (vec2(float(sx), float(sy)) + 0.5) / 3.0) / cellCount; // evenly spaced taps, not the pixel's own uv, matching the existing cell-centre sampling convention
+      luminance += dot(texture2D(inputBuffer, tapUV).rgb, vec3(0.299, 0.587, 0.114));
+    }
+  }
+  luminance /= 9.0; // normalize the sum back to a 0..1 luminance
 
   float luma = luminance;
   bool sphereHit = false; // true only when the reconstructed ray actually intersects the sphere; reused below instead of a second intersection test
