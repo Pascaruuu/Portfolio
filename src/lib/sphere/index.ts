@@ -153,6 +153,10 @@ export async function initSphere(
 	let pulse        = 0;
 	let animId       = 0;
 	let asciiFrame = 0;
+	// Last values written to the starfield mask, to skip no-op style writes below.
+	let lastMaskX = NaN;
+	let lastMaskY = NaN;
+	let lastMaskR = NaN;
 
 	function setWarpProgress(p: number): void {
 		const clamped = THREE.MathUtils.clamp(p, 0, 1);
@@ -259,17 +263,7 @@ export async function initSphere(
 		// (sphereGroup's parent), so sphereGroup's own .scale stays at its
 		// default and would silently read wrong here.
 		sphereGroup.getWorldScale(sphereWorldScale);
-		projectedSphereCenter.set(0, 0, 0).project(camera);
-		projectedSphereEdge.set(SPHERE_R * sphereWorldScale.x, 0, 0).project(camera);
-		const screenCenterX = (projectedSphereCenter.x * 0.5 + 0.5) * viewport.vw;
-		const screenCenterY = (-projectedSphereCenter.y * 0.5 + 0.5) * viewport.vh;
-		const screenEdgeX = (projectedSphereEdge.x * 0.5 + 0.5) * viewport.vw;
-		const screenEdgeY = (-projectedSphereEdge.y * 0.5 + 0.5) * viewport.vh;
-		const projectedRadius = Math.hypot(screenEdgeX - screenCenterX, screenEdgeY - screenCenterY); // still feeds the asciiStarsBg CSS mask below; no longer also feeds the ascii shader (that path is dead, see ascii.ts)
 		setSphereScale(sphereWorldScale.x);
-		asciiStarsBg.style.setProperty('--sphere-x', `${screenCenterX}px`);
-		asciiStarsBg.style.setProperty('--sphere-y', `${screenCenterY}px`);
-		asciiStarsBg.style.setProperty('--sphere-r', `${projectedRadius * 1.05}px`);
 		camera.updateMatrixWorld();
 		sphereGroup.updateMatrixWorld();
 		sphereCenterView.set(0, 0, 0).applyMatrix4(camera.matrixWorldInverse).divideScalar(SPHERE_R);
@@ -308,6 +302,29 @@ export async function initSphere(
 		}
 		asciiFrame++;
 		if (asciiFrame % 3 === 0) {
+			// Only reproject the mask on frames the composer actually redraws -- style writes here cost a recalc on a body-attached element.
+			projectedSphereCenter.set(0, 0, 0).project(camera);
+			projectedSphereEdge.set(SPHERE_R * sphereWorldScale.x, 0, 0).project(camera);
+			const screenCenterX = (projectedSphereCenter.x * 0.5 + 0.5) * viewport.vw;
+			const screenCenterY = (-projectedSphereCenter.y * 0.5 + 0.5) * viewport.vh;
+			const screenEdgeX = (projectedSphereEdge.x * 0.5 + 0.5) * viewport.vw;
+			const screenEdgeY = (-projectedSphereEdge.y * 0.5 + 0.5) * viewport.vh;
+			const projectedRadius = Math.hypot(screenEdgeX - screenCenterX, screenEdgeY - screenCenterY); // still feeds the asciiStarsBg CSS mask below; no longer also feeds the ascii shader (that path is dead, see ascii.ts)
+			const maskR = projectedRadius * 1.05;
+			// Skip each property write when its value hasn't moved since the last redraw frame.
+			if (screenCenterX !== lastMaskX) {
+				asciiStarsBg.style.setProperty('--sphere-x', `${screenCenterX}px`);
+				lastMaskX = screenCenterX;
+			}
+			if (screenCenterY !== lastMaskY) {
+				asciiStarsBg.style.setProperty('--sphere-y', `${screenCenterY}px`);
+				lastMaskY = screenCenterY;
+			}
+			if (maskR !== lastMaskR) {
+				asciiStarsBg.style.setProperty('--sphere-r', `${maskR}px`);
+				lastMaskR = maskR;
+			}
+
 			camera.layers.set(0);
 			composer.render();
 			camera.layers.set(0);

@@ -1,7 +1,6 @@
 import { languageStrings } from './language-strings.js';
 import {
 	contactEmail,
-	preloadImages,
 	projects as projectMeta,
 	skillItems,
 	socialLinks
@@ -17,8 +16,6 @@ import type {
 	ContactContent,
 	UiContent
 } from './types.js';
-
-export { preloadImages };
 
 // ─── Hotspot label lookup ─────────────────────────────
 export function getLabel(id: SectionId, lang: Lang): string {
@@ -58,7 +55,7 @@ export function getProjects(lang: Lang): ProjectsContent {
 		items: projects.items.map((project, index) => ({
 			...project,
 			title: projectMeta[index]?.title ?? '',
-			img: projectMeta[index]?.img ?? '',
+			img: projectMeta[index]!.img,
 			url: projectMeta[index]?.url ?? ''
 		})),
 		viewAll: projects.viewAll

@@ -1,3 +1,5 @@
+import type { Picture } from '@sveltejs/enhanced-img';
+
 export const sectionIds = ['about', 'skills', 'projects', 'experience', 'art', 'contact'] as const;
 export type SectionId = typeof sectionIds[number];
 export type Lang = 'en' | 'ja';
@@ -12,7 +14,7 @@ export interface ProjectItem {
 	title: string;
 	desc: string;
 	tags: string[];
-	img: string;
+	img: Picture;
 	url: string;
 }
 

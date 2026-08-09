@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getArt } from '$lib/content.js';
 	import type { Lang } from '$lib/types.js';
-	import { artPieces, ART_GRID_THUMB_SIZES } from '$lib/content/art/loader.js';
+	import { artPieces } from '$lib/content/art/loader.js';
 	import { lightbox } from '$lib/lightbox.svelte.js';
 	import { artFilter } from '$lib/artFilter.svelte.js';
 
@@ -33,7 +33,7 @@
 						class="art-cell"
 						onclick={(e) => lightbox.open(piece, e.currentTarget as HTMLElement)}
 					>
-						<enhanced:img class="art-cell-img" src={thumbnail} alt="" sizes={ART_GRID_THUMB_SIZES} />
+						<enhanced:img class="art-cell-img" src={thumbnail} alt="" />
 						<span class="art-cell-title">{piece.title[lang] ?? '—'}</span>
 					</button>
 				</div>

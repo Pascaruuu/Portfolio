@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { getAbout, getUi } from '$lib/content.js';
+	import { pfpImage } from '$lib/portfolio-data.js';
 	import type { Lang } from '$lib/types.js';
 
 	let { lang }: { lang: Lang } = $props();
@@ -8,7 +9,7 @@
 	const ui = $derived(getUi(lang));
 </script>
 
-<img src="/images/pfp.jpg" alt={ui.profilePhotoAlt} class="about-photo" />
+<enhanced:img src={pfpImage} alt={ui.profilePhotoAlt} class="about-photo" />
 <div class="about-body">
 	{#each c.paragraphs as para, i (i)}
 		<p>{para}</p>

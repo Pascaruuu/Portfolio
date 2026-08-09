@@ -18,27 +18,17 @@ const imageModules = import.meta.glob<Picture>('./*/*.{png,jpg,jpeg,webp}', {
 	import: 'default'
 });
 
-// This one feeds the art grid, which renders many cells at a known, fixed
-// size, so it carries an explicit `w` directive — that's what makes
-// enhanced-img emit w-descriptor srcset instead of x-descriptor, which in
-// turn is what makes a `sizes` attribute on the grid's <enhanced:img>
-// meaningful (browsers only consult `sizes` for w-descriptor srcset).
-// 222px is the largest cell the grid ever renders (the single-column tier
-// at the 320px panel floor — see the .art-grid container queries below);
-// the other tiers (180, 179, 150px) are all smaller, so 222/444 covers
-// every tier at 1x/2x device pixel ratio without generating a width per tier.
+// Single candidate at the grid's own default-tier cell width (900px
+// PANEL_MAX_W, minus .panel-body's 76px inline padding, minus the 3-column
+// tier's two 30px gaps, divided by 3 columns = 254.67px -> 255). The old
+// 222px here was computed for the single-column resize-floor tier, not the
+// grid's actual default rendering; recalculated per the current .art-grid/
+// .panel-body CSS rather than carried forward. quality:50 matches Phase 17.
 const thumbnailModules = import.meta.glob<Picture>('./*/*.{png,jpg,jpeg,webp}', {
 	eager: true,
-	query: { enhanced: true, w: '222;444' },
+	query: { enhanced: true, w: '255', quality: '50' },
 	import: 'default'
 });
-
-// Single source of truth for the grid cell width computed above. Consumed by
-// the grid's own `sizes` attribute (Art.svelte) and by the thumbnail
-// preload's `imagesizes` attribute (+page.svelte) — both must read this
-// constant rather than each hardcoding "222px", or the two can silently
-// drift apart and the preload stops being a cache hit.
-export const ART_GRID_THUMB_SIZES = '222px';
 
 function pathParts(path: string): { slug: string; filename: string } {
 	const segments = path.split('/');

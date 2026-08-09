@@ -11,14 +11,14 @@
 	import Contact from '$lib/components/sections/Contact.svelte';
 	import ArtLightbox from '$lib/components/ArtLightbox.svelte';
 	import { lightbox } from '$lib/lightbox.svelte.js';
-	import { navItems } from '$lib/portfolio-data.js';
+	import { navItems, aboutPreloadImages, projectPreloadImages } from '$lib/portfolio-data.js';
 	import { initSphere, HOTSPOT_DEFS } from '$lib/sphere.js';
 	import { viewport } from '$lib/viewport.svelte.js';
 	import { timeline } from '$lib/timeline.svelte.js';
 	import { PANEL_GUTTER, PANEL_MAX_W, PANEL_H_GUTTER } from '$lib/panelGeometry.js';
 	import { createDraggablePanel, RESIZE_DIRS } from '$lib/createDraggablePanel.svelte.js';
-	import { getLabel, getHeading, getArt, getUi, preloadImages } from '$lib/content.js';
-	import { artPieces, ART_GRID_THUMB_SIZES } from '$lib/content/art/loader.js';
+	import { getLabel, getHeading, getArt, getUi } from '$lib/content.js';
+	import { artPieces } from '$lib/content/art/loader.js';
 	import { artFilter, type ArtFilter } from '$lib/artFilter.svelte.js';
 	import { panelScrollFade } from '$lib/actions/panelScrollFade.js';
 	import type { SectionId, Lang, HotspotState } from '$lib/types.js';
@@ -143,35 +143,37 @@
 </script>
 
 <svelte:head>
-	{#each preloadImages as src (src)}
-		<link rel="preload" as="image" href={src} />
+	<!-- About/Projects images preload unconditionally: single derivative per format
+	     (see portfolio-data.ts), so one <link> per format present in .sources covers
+	     the avif/webp candidates the <picture> would pick. imagetools omits a fallback
+	     <source> when a format has only one width (redundant with the plain <img> tag),
+	     so .sources never includes the original jpeg/png here -- the extra href-based
+	     link below preloads that exact fallback (picture.img.src) so a browser without
+	     avif or webp support still gets a preload hit instead of an unhinted fetch. -->
+	{#each aboutPreloadImages as picture (picture.img.src)}
+		{#each Object.entries(picture.sources) as [format, srcset] (format)}
+			<link rel="preload" as="image" imagesrcset={srcset} type={`image/${format}`} />
+		{/each}
+		<link rel="preload" as="image" href={picture.img.src} />
 	{/each}
 
-	<!-- Art grid thumbnails: full-size images stay lazy (ArtLightbox only
-	     mounts its <enhanced:img> once a piece is opened, see lightbox.svelte.ts),
-	     but the grid's own cell image is worth preloading since the grid is
-	     the first thing the art panel shows. One <link> per format present in
-	     the thumbnail's sources map, in the same order the grid's <picture>
-	     lists its <source> elements: a browser ignores a preload hint whose
-	     `type` it can't decode, so of these several links a browser only acts
-	     on the one format it would also pick from the <picture> element —
-	     exactly one applicable hint, never a wasted avif fetch followed by a
-	     webp download for a browser that can't use avif. imagesizes is the
-	     same ART_GRID_THUMB_SIZES constant the grid's `sizes` attribute uses,
-	     and imagesrcset is read straight off the same Picture object the grid
-	     renders, so neither can drift from what the grid actually requests. -->
+	{#each projectPreloadImages as picture (picture.img.src)}
+		{#each Object.entries(picture.sources) as [format, srcset] (format)}
+			<link rel="preload" as="image" imagesrcset={srcset} type={`image/${format}`} />
+		{/each}
+		<link rel="preload" as="image" href={picture.img.src} />
+	{/each}
+
+	<!-- Art grid thumbnails: full-size images stay lazy (ArtLightbox only mounts
+	     its <enhanced:img> once a piece is opened, see lightbox.svelte.ts) -- only
+	     the grid's own cell image preloads here, same pattern as above. -->
 	{#each artPieces as piece (piece.slug)}
 		{@const [thumbnail] = piece.thumbnails}
 		{#if thumbnail}
 			{#each Object.entries(thumbnail.sources) as [format, srcset] (format)}
-				<link
-					rel="preload"
-					as="image"
-					imagesrcset={srcset}
-					imagesizes={ART_GRID_THUMB_SIZES}
-					type={`image/${format}`}
-				/>
+				<link rel="preload" as="image" imagesrcset={srcset} type={`image/${format}`} />
 			{/each}
+			<link rel="preload" as="image" href={thumbnail.img.src} />
 		{/if}
 	{/each}
 </svelte:head>
