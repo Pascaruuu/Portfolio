@@ -30,6 +30,20 @@
 	let currentSection = $state<SectionId | null>(null);
 	let panelOpen      = $state(false);
 	let panelFullscreen = $state(false);
+	// True only while the current panelFullscreen: true was set by the
+	// auto-fullscreen effect below, not by the user's own toggle click --
+	// see that effect for why this is what lets closing the detail view
+	// exit fullscreen automatically without also fighting a user who
+	// explicitly chose fullscreen themselves.
+	let detailAutoFullscreen = $state(false);
+	// True once the auto-fullscreen effect has made its one entry decision
+	// for the detail view that's currently open -- without this, the
+	// effect (which also reacts to panelFullscreen itself) would treat a
+	// user's manual toggle-off while still viewing the detail as "just
+	// opened, not fullscreen yet" and immediately re-enter fullscreen.
+	// Reset whenever the detail view closes, so the next detail open gets
+	// a fresh decision.
+	let detailFullscreenDecided = $state(false);
 	let hintDismissed  = $state(false);
 	let isDragging     = $state(false);
 	let isHovering     = $state(false);
@@ -133,10 +147,53 @@
 		panelOpen      = false;
 		currentSection = null;
 		panelFullscreen = false;
+		detailAutoFullscreen = false;
+		detailFullscreenDecided = false;
 	}
 
 	$effect(() => {
 		if (panelOpen && !panel.initialized) panel.init();
+	});
+
+	// Auto-fullscreen: opening a project's detail view on mobile enters
+	// fullscreen automatically (the windowed mobile panel, ~75% of the
+	// viewport, isn't tall enough to read a write-up comfortably). Gated on
+	// !viewport.isDesktop -- desktop has no fullscreen affordance at all
+	// (.panel-fs-btn is display:none there, see app.css), so this must
+	// never fire there.
+	// detailFullscreenDecided makes the entry a one-shot per detail-open,
+	// not a standing "keep it fullscreen" rule: this effect also depends
+	// on panelFullscreen (it has to, to decide whether to act), so without
+	// this guard, a user who manually toggles fullscreen OFF while still
+	// viewing the detail would read as `inDetail && !panelFullscreen`
+	// again and get immediately put back into it -- indistinguishable from
+	// having just opened the detail. Deciding once per open (and resetting
+	// the flag only when the detail actually closes, in closePanel and the
+	// effect's own else-branch below) is what leaves a manual toggle alone
+	// for the rest of that detail view.
+	// Exit is symmetric and deliberately narrower: only ever auto-exits
+	// fullscreen if THIS effect was the one that turned it on
+	// (detailAutoFullscreen) -- a user who was already fullscreen before
+	// opening the detail, or who manually toggled fullscreen while viewing
+	// it (see .panel-fs-btn's onclick below, which clears the flag), keeps
+	// whatever fullscreen state they chose when they back out to the grid.
+	$effect(() => {
+		const inDetail = currentSection === 'projects' && projectDetail.selectedSlug !== null;
+		if (inDetail) {
+			if (!detailFullscreenDecided) {
+				detailFullscreenDecided = true;
+				if (!viewport.isDesktop && !panelFullscreen) {
+					panelFullscreen = true;
+					detailAutoFullscreen = true;
+				}
+			}
+		} else {
+			detailFullscreenDecided = false;
+			if (detailAutoFullscreen) {
+				panelFullscreen = false;
+				detailAutoFullscreen = false;
+			}
+		}
 	});
 
 	// Projects' sub-view is a navigational position, not a preference (unlike
@@ -387,7 +444,7 @@
 					</a>
 				{/if}
 				<div class="panel-header-actions">
-					<button class="panel-fs-btn" onclick={() => panelFullscreen = !panelFullscreen} aria-label="Toggle full screen">
+					<button class="panel-fs-btn" onclick={() => { panelFullscreen = !panelFullscreen; detailAutoFullscreen = false; }} aria-label="Toggle full screen">
 						<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor"
 							fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 							{#if panelFullscreen}

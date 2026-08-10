@@ -958,13 +958,18 @@ html {
     display: none;
   }
 
-  .project-tags {
+  /* Scoped to .project-card -- .project-tags and .tag are also used by
+     ProjectDetail.svelte's own (unrelated) tag row, which is not a
+     descendant of .project-card. An unscoped selector here previously
+     capped the detail view at two tags too; the detail view must keep
+     showing every tag regardless of container width. */
+  .project-card .project-tags {
     margin-top: 4px;
     flex-wrap: nowrap;
     overflow: hidden;
   }
 
-  .tag:nth-child(n + 3) {
+  .project-card .tag:nth-child(n + 3) {
     display: none;
   }
 }
@@ -2255,13 +2260,28 @@ html {
     display: none;
   }
 
+  /* PHASE 10 (mobile panel height): 75dvh, not the old min(46dvh, 360px)
+     -- the previous 360px ceiling was what made the windowed mobile panel
+     read as short: 46dvh only exceeds 360px past a ~783px-tall viewport,
+     so on every common phone the fixed 360px cap was the binding
+     constraint, not the percentage. 75dvh has no ceiling here and matches
+     PANEL_DEFAULT_H_VH (panelGeometry.ts) -- desktop's own default
+     panel-height fraction on first open -- so "roughly three-quarters of
+     the viewport" is now the same fraction on both breakpoints, not two
+     independently-tuned numbers.
+     bottom's own offset (70px + safe-area, unchanged) is what's still
+     reserved for .section-nav below the panel; combined with 75dvh this
+     leaves the top ~25dvh minus that offset for the sphere and .controls,
+     comfortably above .controls' own ~44-56px height at every common
+     phone viewport height (97-135px measured at 667/844/915px tall --
+     see the PHASE 10 report for the per-device arithmetic). */
   .popup-card {
     left: 18px;
     right: 18px;
     top: auto;
     bottom: calc(70px + env(safe-area-inset-bottom));
     width: auto;
-    max-height: min(46dvh, 360px);
+    max-height: 75dvh;
     border-radius: 14px;
     transform: none;
   }
@@ -2402,10 +2422,15 @@ html {
     display: none;
   }
 
+  /* PHASE 10: no max-height override here anymore -- that coupled a
+     WIDTH-triggered breakpoint to a HEIGHT reduction for no derived
+     reason (this query only exists to tighten the horizontal insets on
+     narrow phones); the general @media (--mobile) rule's 75dvh above
+     already scales correctly with the viewport's own height regardless
+     of width. */
   .popup-card {
     left: 14px;
     right: 14px;
-    max-height: min(44dvh, 330px);
   }
 
   .panel-body {
@@ -2429,7 +2454,13 @@ html {
     display: none;
   }
 
+  /* PHASE 10: still a real reduction below the general 75dvh (not just
+     inherited unchanged) -- this tier exists specifically to guarantee
+     extra top clearance on short viewports (below WELCOME_COMPACT_H,
+     640px), on top of hiding .welcome-role/-hint above. 65dvh keeps that
+     purpose (10 percentage points shorter than the general rule) without
+     reintroducing a fixed px ceiling. */
   .popup-card {
-    max-height: min(42dvh, 300px);
+    max-height: 65dvh;
   }
 }
