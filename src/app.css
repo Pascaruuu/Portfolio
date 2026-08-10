@@ -630,13 +630,6 @@ html {
   --panel-fade-size: 32px;
   --panel-fade-top: 0px;
   --panel-fade-bottom: 0px;
-  /* PHASE 5E: the fluid reading measure, inherited by .project-detail-desc
-     and .project-detail-markdown (see the latter for the full derivation).
-     Defined here, on the container itself, purely so both consumers can
-     share one clamp() expression via custom-property inheritance instead of
-     repeating it -- .project-detail-desc isn't a descendant of
-     .project-detail-markdown, so it can't inherit from that rule directly. */
-  --prose-measure: clamp(55ch, 60cqi, 67ch);
   mask-image: linear-gradient(to bottom,
     transparent 0,
     black var(--panel-fade-top),
@@ -782,6 +775,12 @@ html {
 @container (max-width: 540px) {
   .project-grid {
     grid-template-columns: 1fr;
+    /* PHASE 9: tighter than the 2-column desktop gap (20px, above) -- the
+       mobile row-card layout (see the @container block after .tag,
+       below) is already visible-row-count constrained by the panel's
+       own height cap, so the gap between rows counts directly against
+       how many fit; see that block's own comment for the arithmetic. */
+    gap: 10px;
   }
 }
 
@@ -876,60 +875,256 @@ html {
   border-radius: 10px;
 }
 
-/* PHASE 2 (projects panel navigation): media capped at 402px, the exact
-   width the loader's image glob fetches (src/lib/content/projects/loader.ts,
-   w:'402') — the detail view's body is wider than a grid card, but the
-   source image isn't, so the frame stays capped rather than stretching the
-   same derivative past its native resolution. No brightness/saturate
-   filter here (unlike .project-img): that muting exists to keep card text
-   readable over a background image; the detail view shows the image as
-   its own focal element, not a backdrop. */
+/* PHASE 9 (mobile card layout): below the same @container (max-width: 540px)
+   threshold that already drops the grid to one column (above), a
+   vertical image-on-top card leaves one card filling nearly the entire
+   height-capped mobile popup-card (see @media (--mobile) .popup-card,
+   min(46dvh, 360px)) -- the list stops reading as a list. Switching to a
+   horizontal layout (image left, text right) lets the card's height come
+   from its text content instead of a full-width 3:2 image, so several
+   rows fit in the same vertical space. Kept inside the existing
+   single-column threshold rather than a new one -- a 2-column grid of
+   horizontal cards would be cramped, so this only ever applies where the
+   grid is already 1 column. Placed here, after the base card rules,
+   rather than merged into the @container block above them: these
+   overrides need to win the cascade against .project-tags's own
+   margin-top: auto and .project-card picture's own width: 100% at equal
+   selector specificity, which source order (not weight) decides.
+
+   100px image width is fixed, not a % of the card, and chosen from the
+   title side, not the image side: at this codebase's measured
+   ~6.3px/EN-character rate for Space Grotesk (see the .body-image
+   derivation below) scaled to .project-title's 0.9rem
+   (~6.9px/character), the text column left over (card width minus this
+   100px, the row's implicit gap, and .project-body's own padding, across
+   the 320-540px container range this rule lives in) clears 20+
+   characters before the title's own overflow/ellipsis (below) would ever
+   trim -- comfortably past this codebase's three shipped titles
+   (12-16 characters). title is a single, not-bilingual string of
+   unbounded length (CONTENT.md) -- there is no Japanese title variant to
+   check against, only a longer hypothetical EN/JA proper noun -- so
+   ellipsis stays as the safety net, the same idiom .project-detail-title
+   already uses for the same reason.
+
+   Image height is left to derive from aspect-ratio: 3/2 (inherited from
+   the base .project-card picture rule above, not reset here) at this
+   fixed 100px width -- 66.67px -- rather than a second fixed number, so
+   there's one parameter to re-derive, not two, if the image's share ever
+   changes. align-items: center (not the row axis's default stretch) is
+   what lets the image keep that 3:2-derived height instead of being
+   force-stretched to match .project-body's own content height, which
+   would distort the crop taller or shorter depending on how many tags
+   happen to wrap.
+
+   .project-desc is dropped, not clamped. A single 0.78rem line already
+   costs ~19px including its own margin-bottom -- more than the row's
+   entire image-bound height budget has left over once title (~18px) +
+   gap (4px) + one tag row (~18px) = ~40px is accounted for. Any line
+   count here either grows the row past the image's 66.67px again
+   (fewer cards visible, reopening the exact problem this block exists to
+   fix) or clips mid-line, so it's cut entirely -- still one tap away in
+   the detail view, which is what description is for.
+
+   .project-tags: nowrap + overflow: hidden, plus .tag:nth-child(n+3)
+   below, cap the row at 2 tags instead of wrapping to a second line --
+   wrapping would grow the row past the image's height, the same budget
+   problem as the description. nth-child is a static cut, not an
+   overflow-measured one: every shipped project has exactly 3 tags, so
+   this always shows 2 and hides 1; it degrades safely (matches nothing)
+   for any project with 2 or fewer. */
+@container (max-width: 540px) {
+  .project-card {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .project-card picture {
+    width: 100px;
+    flex-shrink: 0;
+  }
+
+  .project-body {
+    padding: 8px 12px;
+    justify-content: center;
+  }
+
+  .project-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .project-desc {
+    display: none;
+  }
+
+  .project-tags {
+    margin-top: 4px;
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+
+  .tag:nth-child(n + 3) {
+    display: none;
+  }
+}
+
+/* PHASE 5G (reverses 5E/5F): the detail view fills the panel's content
+   width instead of capping to a reading measure. .project-detail's wrapper
+   div (ProjectDetail.svelte) carried max-width: var(--prose-measure),
+   margin-inline: auto, and a font-size: 0.82rem that existed solely so
+   `ch` resolved correctly for that max-width -- all three are deleted
+   along with the wrapper element itself (no longer needed once it has no
+   CSS of its own), not just emptied. --prose-measure (previously declared
+   on .panel-body) is deleted too. Every element below now gets its width
+   for free from default block flow inside .panel-body-content -- wider
+   panel, wider text; narrower panel, narrower. (PHASE 6 gave the header
+   image its own fixed-height crop, so it no longer grows *taller* with
+   the panel the way text grows longer lines -- it still grows *wider*,
+   full content width, same as everything else here; see
+   .project-detail-media below.) See .project-detail-markdown below for
+   what stayed (vertical rhythm, content components) vs. what PHASE 5G
+   removed. */
+
+/* PHASE 6 (header-strip crop): no longer capped at 402px (that was the
+   2-column card grid's own derivative width leaking into the detail view
+   as a CSS constraint on top of it -- see loader.ts's imageModules for the
+   card's own 402px, unchanged) and no longer a free-aspect framed image
+   either (the previous rule's own aspect-ratio: 3/2 picture box, PHASE 2)
+   -- this is now a fixed-height strip, full content width, the image
+   cover-cropped to fill it and the title overlaid at its lower-left.
+   position: relative makes this the containing block for the title
+   (absolute, below) and the scrim (::after, below) -- both stack inside
+   this one element regardless of whether the image itself has loaded yet
+   (ProjectDetail.svelte always renders this div and the title; only the
+   <enhanced:img> inside is conditional). background: var(--surface-soft)
+   is what shows through before the image loads or if it fails -- the same
+   quiet flat-tint token used elsewhere for "a surface with nothing on it
+   yet" (the markdown code block, Callout), not a new one.
+   200px is a chosen constant, not derived from source resolution or the
+   panel's own width the way the old cap was -- a banner strip's height is
+   a design decision independent of what's under it. Shrinks at narrow
+   container widths, see the @container rule below. */
 .project-detail-media {
-  max-width: 402px;
+  position: relative;
+  height: 200px;
   border-radius: 8px;
   overflow: hidden;
   margin-bottom: 16px;
+  background: var(--surface-soft);
 }
 
 .project-detail-media picture {
+  position: absolute;
+  inset: 0;
   display: block;
-  width: 100%;
-  aspect-ratio: 3 / 2;
 }
 
+/* object-position defaults to center (CSS's own default) when neither
+   custom property is set -- ProjectDetail.svelte only sets --focal-x/-y
+   when meta.json's focalPoint is present (validate.ts), so an image with
+   no focalPoint crops centered with no extra markup or fallback logic
+   needed here. See CONTENT.md's "Focal point" section for when a project
+   actually needs one; two of this codebase's three shipped images do
+   (both top-heavy UI screenshots), the third (an evenly busy training-data
+   mosaic) doesn't -- see the PHASE 6 report for which and why. */
 .project-detail-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: var(--focal-x, center) var(--focal-y, center);
   display: block;
 }
 
+/* The legibility scrim. A pseudo-element, not a sibling div -- decorative,
+   never meaningful to assistive tech (an h3 sibling would need
+   aria-hidden to get the same exclusion for free), and its generated
+   content paints after this element's real children in the same stacking
+   context by spec, so z-index only has to settle the ORDER against the
+   title (below), not prove the scrim is behind everything else too.
+   Bottom-up gradient, confined to roughly the lower half -- fully
+   transparent by 72% up the strip, so the top of the image stays
+   completely clear and only the region actually behind the title darkens.
+   A flat overlay across the whole strip was explicitly ruled out: it
+   would read as a dimming filter over the whole photo rather than a
+   legibility aid for one corner of it.
+   var(--bg) (#080b14, Midnight Ink) via color-mix, the same alpha-token
+   idiom --panel-bg/--border/--surface-soft already use here -- no new
+   color. Checked against all three shipped images, not assumed: the
+   bottom 0% stop (90% opaque) sits under the title on both UI-screenshot
+   projects (aupp-ecampus, jewelry-invoice), whose crop bands land on
+   light near-white content there, and under the YOLO mosaic project,
+   whose crop band there is mixed grey/earth tones -- var(--text) (#f5f2ec)
+   over a 90%-opaque Midnight Ink base measures ~17:1 contrast against
+   plain white, and only gets darker (higher contrast) against every
+   photo/screenshot pixel actually behind it, well past WCAG AA's 4.5:1
+   floor for text this size (1.05rem/600, not "large text" by the AA
+   definition, so the stricter ratio applies). */
+.project-detail-media::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(to top,
+    color-mix(in srgb, var(--bg) 90%, transparent) 0%,
+    color-mix(in srgb, var(--bg) 45%, transparent) 40%,
+    transparent 72%
+  );
+}
+
+/* Absolute, not in-flow -- overlays the strip's lower-left instead of
+   sitting below it (PHASE 6 replaces the old in-flow heading entirely,
+   margin-bottom included: spacing after the strip is now
+   .project-detail-media's own margin-bottom, above). z-index: 2 puts it
+   above the scrim (1) regardless of DOM order. white-space/overflow/
+   text-overflow guard the 320px MIN_W floor, where a long title and a
+   16px-inset strip leave the least room -- this codebase's own three
+   titles ("AUPP-eCampus", "Jewelry-Invoice", "TrashDnC-YOLOv8") all fit
+   without truncating even there, but title is a single, not-bilingual
+   string of unbounded length (CONTENT.md) and the strip's fixed height
+   can't grow to fit a wrapped second line the way an in-flow heading
+   could -- ellipsis on overflow is the safe default for a value with no
+   enforced length ceiling, not a fix for a problem these three have today. */
 .project-detail-title {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 12px;
+  z-index: 2;
   font-size: 1.05rem;
   font-weight: 600;
   color: var(--text);
-  margin-bottom: 8px;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* PHASE 5E: shares --prose-measure with .project-detail-markdown below (see
-   that rule for the full derivation) -- this is the one other element that
-   renders continuous prose at panel width. .project-detail-title (a short
-   heading), .project-tags (compact chips), and .project-detail-link/-status
-   (a pill and a status line) are deliberately NOT capped: measure exists to
-   bound *reading* line length, and none of those three read as prose --
-   capping them would just be an arbitrary width restriction with no
-   typographic justification, and was the source of the "inconsistent"
-   look this phase was asked to fix (image/title/tags/link full width, only
-   the write-up capped, with no relationship between the two widths). The
-   card image already has its own tighter, resolution-driven cap (402px,
-   see .project-detail-media) that sits under even the measure's lower
-   bound, so it never conflicts with either. */
+/* PHASE 6: narrower than this, a 200px-tall strip stops reading as a
+   banner and starts reading as a near-square photo -- at the 320px MIN_W
+   panel floor (244px content), 200px height is a 1.22:1 box, barely wider
+   than tall. 120px at the same floor is a 2.03:1 box, back in banner
+   territory, and the threshold (420px content width) is picked so the
+   switch lands before the ratio gets that bad, not at the floor itself.
+   Keyed to .panel-body's own container-type: inline-size (inherited, same
+   as .project-grid's @container (max-width: 540px) above) -- not a
+   viewport media query, since the panel resizes independently of the
+   viewport and this needs to react to the panel, the same reasoning
+   documented throughout this file. The scrim's gradient stops are
+   percentages of this element's own height, so they rescale automatically
+   at 120px -- no separate narrow-width scrim rule needed. */
+@container (max-width: 420px) {
+  .project-detail-media {
+    height: 120px;
+  }
+}
+
 .project-detail-desc {
   font-size: 0.82rem;
   line-height: 1.65;
   color: var(--muted);
   margin-bottom: 14px;
-  max-width: var(--prose-measure);
 }
 
 .project-detail-link {
@@ -954,99 +1149,62 @@ html {
    PHASE 5A. Replaces the PHASE 3 system, which gave every element
    (paragraph, list, heading, blockquote) the same 0.82rem/muted
    treatment and one spacing value -- a new section and a new paragraph
-   were visually identical. Three things change that: a capped reading
-   measure, a 3-tier vertical rhythm, and three new content components
-   (StatBlock/Callout/SpecList, src/lib/components/content/) .svx files
-   import directly for metrics, key/value facts, and asides instead of
-   folding them into prose.
+   were visually identical. Three things change that: a 3-tier vertical
+   rhythm, three new content components (StatBlock/Callout/SpecList,
+   src/lib/components/content/) .svx files import directly for metrics,
+   key/value facts, and asides instead of folding them into prose, and
+   (PHASE 5E, since reversed) a capped reading measure.
 
-   PHASE 5E. Replaces the PHASE 5A fixed 55ch cap with a fluid band,
-   clamp(55ch, 60cqi, 67ch) (--prose-measure, defined on .panel-body
-   above) -- a hard ceiling read as a mistake rather than a choice once
-   the panel got wide: in a fullscreen panel the prose sat in a narrow
-   463px column with a large dead area beside it. cqi (not vw) because
-   the panel resizes independently of the viewport -- .panel-body
-   already establishes container-type: inline-size for exactly this.
+   PHASE 5G reverses 5E/5A's reading-measure cap: the whole detail view,
+   this write-up included, now fills the panel's own content width
+   instead of stopping at a fixed character count -- wider panel, longer
+   lines; narrower panel, shorter. --prose-measure, its clamp(), and the
+   ch-based derivation that produced 55/67ch are deleted, not just
+   unused -- see the git history on this file for that derivation if the
+   cap ever needs to come back. Per-panel-width character counts under
+   the new, uncapped behavior are in the PHASE 5G report, not repeated
+   here as a comment (they're a report artifact, not a constraint this
+   file enforces). font-size: 0.82rem also dropped from this rule (and
+   from the deleted .project-detail wrapper it briefly lived on) --
+   nothing here ever relied on inheriting it: every child below sets its
+   own font-size explicitly (h1/h2/h3, p, ul/ol, code/pre, blockquote),
+   and the wrapper's copy existed solely so `ch` resolved correctly for
+   a max-width that no longer exists.
 
-   BOTH BOUNDS measured the same way, not guessed: rendered this
-   codebase's actual EN/JA project write-ups (all three shipped
-   projects' detail.*.svx prose, ~7,900 EN / ~3,870 JA characters) in
-   Space Grotesk at this element's own font-size (0.82rem = 13.12px at
-   the 16px root) via headless Chrome and measured real glyph widths:
-     1ch @ 0.82rem Space Grotesk           = 8.410px (0.51em; matches
-       PHASE 5A's independently-measured 8.42px within rounding)
-     EN prose average advance              = 6.298px/character
-     JA prose average advance (CJK fallback face, includes this
-       codebase's realistic mix of kanji/kana with embedded Latin
-       proper nouns like "React"/"YOLOv8") = 12.268px/character
+   StatBlock/Callout/SpecList (below) still render inside this element
+   and still don't need their own width rule -- they fill whatever width
+   this element has, capped or not; only the ceiling changed.
 
-   LOWER = 55ch = 462.5px -> 73 EN characters/line, 38 JA
-     characters/line. Unchanged from PHASE 5A (that phase's 74/35 came
-     from a smaller, purer-JA sample; both land in the same comfortable
-     band, see PHASE 5A history above for why 55ch specifically). This
-     is where the measure has always lived, and where it still needs to
-     live once the panel is too narrow for anything wider to help.
-   UPPER = 67ch = 563.5px -> 89 EN characters/line, 46 JA
-     characters/line. Chosen to land EN just under Bringhurst's
-     commonly-cited 90-character outer edge for body text (45-75 ideal,
-     90 as the absolute ceiling before line-tracking degrades) --
-     67ch = 90 * 6.298 / 8.410, rounded down so the resulting count
-     (89) stays under, not at, that ceiling. JA's 46 is a proportionate
-     stretch past its own ~30-40 ideal, accepted for the same reason
-     PHASE 5A accepted EN's 74: generous, not the ragged edge of it.
-
-   GROWTH: 60cqi (60% of .panel-body's own content-box width) is a
-   plain percentage, not a two-point calc() interpolation -- matches
-   this file's existing clamp(min, Nvw, max) idiom elsewhere (see the
-   responsive font-size rules) rather than introducing a new pattern
-   for one property. Consequence, worth knowing rather than tuning
-   around: because 60cqi only overtakes the fixed 462.5px floor once
-   content width exceeds ~771px (~847px panel width), the measure stays
-   flat at the PHASE 5A value for panel widths ~539-847px, then ramps,
-   then flattens again at 563.5px once content width passes ~939px
-   (~1016px panel width). Checked against this app's actual panel
-   states (MIN_W 320px, PANEL_MAX_W 900px default, a manually widened
-   panel, and fullscreen, which has no upper width limit of its own):
-     MIN_W  320px panel (244px content) -> cap never binds (243px content
-       is already under the 462.5px floor) -> 38 EN / 19 JA chars/line,
-       identical to PHASE 5A's behavior at this width.
-     DEFAULT 900px panel (824px content) -> mid-ramp, 494px measure ->
-       78 EN / 40 JA chars/line -- already visibly wider than PHASE 5A's
-       fixed 73/38 at the same width, with no extra markup or config.
-     WIDE   e.g. resized to 1200px panel (1124px content) -> past the
-       939px content-width saturation point -> capped at 563.5px ->
-       89 EN / 46 JA chars/line.
-     FULLSCREEN 1920px viewport (1844px content, worst case for the old
-       fixed cap) -> same 563.5px cap as WIDE -> 89 EN / 46 JA
-       chars/line. The fullscreen dead-space problem this phase set out
-       to fix shrinks from (1844 - 463) 1381px to (1844 - 563) 1281px --
-       a modest, deliberate reduction, not an attempt to fill the panel;
-       a single-column reading width that stops growing well before
-       filling an ultrawide panel is standard editorial layout (this
-       codebase's own PHASE 5A comment already made the same call at
-       463px), not a second bug to fix here.
-
-   It also bounds StatBlock/Callout/SpecList below, since they're
-   rendered inside this same element: the whole write-up shares one
-   column instead of prose plus full-bleed widgets.
-
-   font-size: 0.82rem is set HERE, on the container, not just on its
-   `p`/`ul`/`li` children below (which already declared it individually
-   pre-PHASE-5E) -- `ch` resolves against the font-size of the element
-   the property is *used* on, not where --prose-measure is *declared*
-   (.panel-body). Caught by measuring getComputedStyle on the live page:
-   without this line, the div's own font-size fell back to the
-   inherited 16px root default (nothing upstream of this rule sets a
-   smaller one on the div itself, only on specific descendants), so `ch`
-   in its own max-width silently sized itself off 16px Space Grotesk
-   instead of the 13.12px every line of text inside it actually renders
-   at -- two different rulers measuring the same clamp() expression. */
+   PHASE 7 (body-image float): display: flow-root establishes a new block
+   formatting context, which is what makes this element's own auto height
+   always fully contain a floated .body-image (below), including one that
+   is this element's last child with nothing after it to clear the float --
+   without this, a trailing floated body image collapses out of this
+   element's reported height, which cascades up into .panel-body-content
+   and .panel-body's own scrollable height under-reporting how tall the
+   content actually is, clipping the bottom of the image the user can
+   never scroll to. flow-root is the modern equivalent of the old
+   `::after { content:''; clear:both }` clearfix hack -- one property,
+   no pseudo-element, and it doesn't interact with `.project-detail-
+   markdown > :last-child`'s own margin-bottom: 0 rule below (that rule
+   zeroes the last child's own margin; flow-root is about this element's
+   own height, an orthogonal concern). */
 .project-detail-markdown {
   margin-top: 16px;
-  font-size: 0.82rem;
-  max-width: var(--prose-measure);
+  display: flow-root;
 }
 
+/* clear: left -- a heading is a section boundary, never something that
+   should sit beside a floated body image (the failure mode PHASE 7 was
+   asked to avoid: a heading pulled up into the wrap column looks like it
+   belongs to the image, not the section it actually introduces). Matches
+   selector-wise regardless of whether the immediately preceding sibling
+   is floated -- `* + h1`/`* + h3` below still fire the same margin-top
+   rhythm; clear only adds a floor under that margin, on top of it, never
+   instead of it (floats don't margin-collapse with a following cleared
+   sibling), so a heading after a short image is never closer than its
+   own normal rhythm, and one after a tall image is pushed further down
+   to actually clear it. */
 .project-detail-markdown h1,
 .project-detail-markdown h2,
 .project-detail-markdown h3 {
@@ -1054,6 +1212,7 @@ html {
   font-weight: 600;
   line-height: 1.3;
   margin-bottom: 8px;
+  clear: left;
 }
 /* h1 reuses .project-detail-title's own size: if a write-up ever needs
    one, it reads as a peer of the piece's own title rather than a
@@ -1151,6 +1310,11 @@ html {
   padding: 2px 6px;
 }
 
+/* clear: left -- PHASE 7, same "boxed component, not prose" reasoning as
+   .stat-block/.spec-list/.callout below: a code block's own background
+   chip and (often) fixed-width code lines don't have room to reflow
+   inside a narrow wrap column the way a paragraph does, so it drops below
+   any floated body image instead of squeezing beside it. */
 .project-detail-markdown pre {
   background: var(--surface-soft);
   border: 1px solid var(--border);
@@ -1158,6 +1322,7 @@ html {
   padding: 12px 14px;
   overflow-x: auto;
   margin-bottom: 20px;
+  clear: left;
 }
 .project-detail-markdown pre code {
   font-family: var(--font);
@@ -1195,22 +1360,33 @@ html {
    one shared card -- matches the flat, bordered-cell idiom
    .project-card already uses, not a new shadowed surface.
    Reflow: container-type: inline-size on the block itself, not just
-   inherited from .panel-body -- the column count needs to react to the
-   stat block's own rendered width, which --prose-measure already
-   constrains independently of how wide the panel itself is (especially
-   in fullscreen, where .panel-body's width can far exceed the measure --
-   PHASE 5E made that measure fluid, see .project-detail-markdown, but it
-   still tops out at 67ch, well under .panel-body's own fullscreen width).
-   Below 320px it drops to one column: .panel-body's 320px MIN_W floor
-   minus its 76px of horizontal padding leaves 244px of content width,
-   so this tier is really "at or near the panel's absolute minimum,"
-   where two ~115px value/label columns would start to crowd. */
+   inherited from .panel-body -- the column count reacts to the stat
+   block's own rendered width, which (PHASE 5G, since the reading-measure
+   cap was removed) is now the same as .panel-body's own content width:
+   no ceiling of its own. Below 320px it drops to one column: .panel-body's
+   320px MIN_W floor minus its 76px of horizontal padding leaves 244px of
+   content width, so this tier is really "at or near the panel's absolute
+   minimum," where two ~115px value/label columns would start to crowd --
+   unaffected by PHASE 5G, since the old measure never bound at this width
+   either (244px was already under its 462.5px floor).
+   PHASE 5G consequence, confirmed not a regression but worth flagging: at
+   fullscreen on a wide viewport, .stat-block itself can now render at
+   1800px+ instead of topping out at 563.5px, so each of the two columns
+   stretches to 800px+ of mostly empty padding around a short value/label
+   pair. Still functionally correct (2 columns above 320px, 1 below), and
+   left alone deliberately -- .stat-block's own grid-template-columns/gap
+   are a content-component layout, which PHASE 5G's brief explicitly does
+   not touch.
+   clear: left, PHASE 7 -- a 2-column grid squeezed into the narrow wrap
+   space beside a floated .body-image would crowd well before its own
+   320px container-query tier does; drops below any float instead. */
 .stat-block {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 20px 16px;
   container-type: inline-size;
   margin-bottom: 20px;
+  clear: left;
 }
 
 .stat-block-item {
@@ -1255,12 +1431,17 @@ html {
    both columns wrap their own text on overflow, which is what lets
    this degrade at the narrowest panel width without a container query
    the way the two grid-based components need -- there's no track count
-   to re-flow, just two columns that keep wrapping. */
+   to re-flow, just two columns that keep wrapping.
+   clear: left, PHASE 7 -- same "boxed component, not prose" treatment as
+   .stat-block/.callout: a 34%/1fr key/value grid squeezed into a narrow
+   wrap column would wrap every key to several lines rather than reading
+   as a scannable list, so it drops below any floated body image too. */
 .spec-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
   margin-bottom: 20px;
+  clear: left;
 }
 
 .spec-list-row {
@@ -1303,7 +1484,14 @@ html {
    (var(--border-strong)), which is what visually separates "boxed,
    labeled aside" from "plain inline quote" without inventing a new
    border color for either. No box-shadow -- Flat-By-Default, same as
-   everywhere else in the system. */
+   everywhere else in the system.
+   clear: left, PHASE 7 -- a bordered/backgrounded box reads as its own
+   unit; squeezed beside a floated body image it would look like it
+   belongs to the image rather than sitting in its own place in the
+   write-up, so it drops below any float instead. Distinguishes this from
+   blockquote (below, prose-tier, wraps normally) the same way the
+   comment above already distinguishes "boxed, labeled aside" from "plain
+   inline quote." */
 .callout {
   background: var(--surface-soft);
   border: 1px solid var(--border);
@@ -1311,6 +1499,7 @@ html {
   border-radius: 8px;
   padding: 14px 18px;
   margin-bottom: 20px;
+  clear: left;
 }
 
 .callout-label {
@@ -1340,23 +1529,43 @@ html {
    proportions. No border either -- .project-detail-media doesn't have
    one, and the bordered-cell idiom (.stat-block-item, .callout) is for
    UI chrome, not photographic/diagram content.
-   Deliberately NOT bled wider than --prose-measure: it's a plain
-   descendant of .project-detail-markdown with no width rule of its
-   own, so `width: 100%` here means "fill the write-up's own column,"
-   the same column its surrounding paragraphs use. A wider "breakout"
-   image would need negative margins keyed to .panel-body's padding to
-   bleed past that column -- more machinery than this pass's "layout
-   and components only" scope justifies, and it would leave the image's
-   edges unaligned with the text directly above and below it, which
-   reads as less deliberate than a flush column edge, not more.
-   Width query param derived from --prose-measure's own upper bound:
-   67ch * 8.41px/ch (this element's own 0.82rem font-size, see
-   .project-detail-markdown's derivation) = 563.5px, rounded up to
-   564px -- see loader.ts's bodyImageModules. That's the widest a body
-   image can ever actually render at, so it's never upscaled past its
-   source at any panel width. */
+
+   PHASE 7 (float + wrap) replaces PHASE 5G's "fills whatever width the
+   write-up has" full-bleed treatment: this now floats left, capped at
+   700px, with prose wrapping its right side instead of the image sitting
+   alone above/below a paragraph with empty space beside it.
+   width: 700px + max-width: 100% (not the other way around) -- width
+   sets the target; max-width is what lets it shrink below 700px in a
+   container that can't fit that plus the wrap gutter, without ever
+   overflowing it. Below app.css's own @container threshold (below), this
+   whole float/cap treatment is switched off entirely in favor of a
+   full-width block -- see that rule for the threshold derivation.
+   margin: 0 20px 20px 0 -- the 20px gutter (right, before wrapped text)
+   and bottom margin (below, before whatever clears or wraps next) both
+   reuse this write-up's own existing block-to-block rhythm constant (see
+   .project-detail-markdown's PHASE 3/5A comment, above), not a new
+   spacing value invented for this one component.
+   clear: left -- two body images never float side by side (a second one
+   always drops below the first, regardless of how much or little prose
+   sits between them); see the PHASE 7 report for what this looks like
+   with a single short paragraph between two images. A no-op on a body
+   image with no preceding float (the common case: one image, or the
+   first of several), so this is safe to apply unconditionally rather
+   than needing a :not(:first-of-type) qualifier.
+   Width query param re-derived PHASE 7 -- loader.ts's writeupBodyImageModules,
+   not the header image's bodyImageModules (1844px, unchanged, still feeds
+   .project-detail-media only) -- full arithmetic in that glob's own
+   comment: 850px is both the float's own cap (700) plus its wrap gutter
+   (20) plus the minimum readable wrapped-text column this pass derived
+   (130px, see the PHASE 7 report), AND, separately, the widest this image
+   can render as a non-floating full-width block just below that same
+   threshold -- one number correctly covers both layout modes. */
 .body-image {
-  margin-bottom: 20px;
+  float: left;
+  width: 700px;
+  max-width: 100%;
+  margin: 0 20px 20px 0;
+  clear: left;
 }
 
 .body-image-img {
@@ -1378,6 +1587,47 @@ html {
   line-height: 1.5;
   color: var(--muted);
   margin-top: 8px;
+}
+
+/* PHASE 7: a 700px float is impossible in a 244px MIN_W column, and
+   pointless well before that -- it just leaves less and less room for
+   the wrapped text beside it. Threshold DERIVED from the minimum readable
+   wrapped-text column, not from the image:
+     700px (float cap) + 20px (wrap gutter, .body-image's own margin-right)
+     + 126px (floor for the wrapped column itself: ~20 EN characters at
+       this write-up's 0.82rem Space Grotesk, 6.298px/character -- the
+       same per-character measurement this codebase already established
+       for the write-up's own reading-measure derivation, before that cap
+       was removed; ~20 characters is a commonly-cited hard floor below
+       which word-wrap stops reading as prose and starts reading as a
+       column of fragments; in JA the same 126px is ~10 characters at
+       12.268px/character, close enough to the EN floor from a different
+       direction that one width serves both languages)
+     = 846px, rounded up to 850px for a clean breakpoint and a few px of
+     safety margin -- same "round up, never a hair short" rounding this
+     codebase already applies elsewhere (loader.ts's body-image derivative
+     widths). At the float's own default (900px) panel width (824px
+     content), that's BELOW 850 -- body images stack full-width there;
+     widening the panel past ~850px content (or fullscreen) is what
+     reveals the float. Not a shortfall: a resizable panel revealing more
+     layout as it's widened is this codebase's existing PHASE 5G/6
+     pattern applied here too, not a new compromise.
+     At 850px itself (the engagement point), the wrapped column is
+     850 - 700 - 20 = 130px -- at or just above the 126px floor by
+     design, never below it: this rule and the float's own defaults are
+     never both active with less room than that.
+   @container, not @media -- the panel resizes independently of the
+   viewport (this file's standing reason for every panel-width rule),
+   keyed to .panel-body's own container-type: inline-size the same way
+   .project-grid's and .project-detail-media's own container queries
+   already are. */
+@container (max-width: 850px) {
+  .body-image {
+    float: none;
+    width: 100%;
+    max-width: none;
+    margin: 0 0 20px 0;
+  }
 }
 
 /* ─── Experience ─────────────────────────────────────── */
@@ -2117,9 +2367,13 @@ html {
     align-items: center;
   }
 
-  .project-body {
-    padding: 11px 12px 13px;
-  }
+  /* .project-body's own padding is no longer set here -- PHASE 9 moved
+     the mobile card layout (image left, text right) to the @container
+     (max-width: 540px) rule in the Projects section above, which now
+     owns .project-body's padding at every width this @media (--mobile)
+     block also matches. A viewport-media override at equal selector
+     specificity would win by source order and silently clobber that
+     container-query padding, so it's deleted rather than left dead. */
 
   /* PHASE 8A: column count is now driven by the @container rules on
      .art-grid (keyed to .panel-body's content width), not the viewport —

@@ -47,6 +47,7 @@ Every field below, no others. Extra fields are ignored, not rejected.
 | `url`             | string, the repo/demo link the card opens       | should be filled — see Failure behavior |
 | `date`            | string, `YYYY-MM-DD` — see `date` section below | should be filled — see Failure behavior |
 | `image`           | filename, relative to the project directory     | **required — its absence removes the project, see Failure behavior** |
+| `focalPoint`      | `{ x, y }`, 0-100 each — see "Focal point" below | optional, no warning if absent — see "Focal point" below |
 
 `title` is a single string, not bilingual — every existing project's name
 is a proper noun (a repo name) that doesn't change between languages.
@@ -104,6 +105,44 @@ loader happened to encounter them, same as art).
   not shown on the card, but PHASE 5E made it available to that project's
   own detail write-up as a **body image** — see "Body images" below. It is
   only truly unused if no `.svx` in that project references it.
+- **The detail view crops this same image to a 200px-tall strip** (narrower
+  panels shrink that to 120px — see `app.css`'s `.project-detail-media`),
+  full width, cover-cropped, with the title overlaid at its lower-left over
+  a gradient scrim. On a wide image this crop discards most of the frame,
+  not just the edges — see "Focal point" below for steering which part
+  survives. The card itself is unaffected: it still shows this image at its
+  own smaller size and aspect, uncropped by this rule.
+
+### Focal point
+
+Optional. Cover-cropping a 200px-tall strip out of a normal screenshot or
+photo can throw away the part that actually matters — a tall UI screenshot
+cropped to a thin strip by default shows whatever's in the vertical middle,
+which for most screenshots is empty space, not the header or the content
+that identifies it.
+
+```json
+"focalPoint": { "x": 50, "y": 0 }
+```
+
+`x` and `y` are each 0-100, the point in the source image that should stay
+in frame after the crop — `0` is the image's own left/top edge, `100` is
+its right/bottom edge, `50` is the middle. Maps directly to CSS
+`object-position` percentages. Omit the field entirely for a centered crop
+(`50, 50`) — this is the default and needs no field at all; most images
+crop fine centered, and this should stay the exception, not something every
+project sets out of habit.
+
+Only worth setting when the meaningful content sits far enough off-center
+that a centered crop would miss it — a full-page screenshot where the
+header/hero is what identifies the project (bias `y` toward `0`, its top
+edge) is the clearest case. An image with content spread evenly across the
+whole frame (a photo, a mosaic, a diagram with no single focal subject)
+doesn't need one; leave it out.
+
+Invalid shapes (missing `x` or `y`, a value outside 0-100, wrong type)
+degrade to a centered crop with a warning from `pnpm validate:projects` —
+same failure tier as a malformed `tags` array, not a skip.
 
 ## Detail file (optional)
 
@@ -232,11 +271,33 @@ something you build or import yourself, just destructure it with
 accessible alt text (required in spirit, though nothing enforces it).
 `caption` is optional — omit it for an uncaptioned image.
 
-**Sizing:** handled entirely by the pipeline. A body image is never wider
-than the write-up's own reading column (it does not bleed out to the
-panel's full width), and is served at the exact resolution that column can
-ever reach, so don't hand-pick dimensions or crop for a specific layout —
-any reasonably-sized source image works.
+**Sizing:** handled entirely by the pipeline. A body image floats left,
+capped at 700px, with the surrounding prose (paragraphs, lists,
+blockquotes) wrapping down its right side instead of the image sitting
+alone with empty space beside it. Headings and the other three content
+components below (StatBlock, SpecList, Callout) — plus a second body
+image, if there is one — always start below any floated image instead of
+squeezing into that wrap column; a heading pulled up beside an image
+would read as belonging to it, not to the section it's actually
+introducing.
+
+On a narrower panel where a 700px float plus a readable strip of wrapped
+text won't both fit, the image drops the float entirely and becomes a
+full-width block instead, same as before this floating behavior existed.
+This is a panel-width threshold, not a fixed viewport breakpoint — a
+panel dragged narrower (or a narrow phone) triggers it exactly the same
+way, and the panel's own default width already sits just under this
+threshold, so widening the panel (or going fullscreen) is what reveals
+the float.
+
+Served at a fixed 850px derivative (the widest a floated-or-fallback body
+image can ever actually render at — see `loader.ts`'s
+`writeupBodyImageModules`, a different, narrower glob than the one
+feeding the header strip), downscaled by the browser at narrower widths
+and upscaled past its own source resolution if the source itself is
+narrower than that — so don't hand-pick dimensions or crop for a specific
+layout, but a source narrower than roughly 850px will look a little soft
+at its own float width.
 
 **Failure behavior:** a body image is the third tier — neither "skips the
 project" nor "shows a dash." A typo'd filename, a filename that doesn't

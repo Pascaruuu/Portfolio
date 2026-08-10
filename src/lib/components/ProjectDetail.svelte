@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Component } from 'svelte';
+	import type { Picture } from '@sveltejs/enhanced-img';
 	import { getProjects } from '$lib/content.js';
 	import type { BodyImageLoader, ProjectItem } from '$lib/content/projects/types.js';
 	import type { Lang } from '$lib/types.js';
@@ -45,12 +46,64 @@
 			cancelled = true;
 		};
 	});
+
+	/**
+	 * PHASE 5G: project.detailImage (loader.ts) is now a lazy loader instead
+	 * of the card's already-resolved `image` -- same idle/loading/loaded/
+	 * failed shape as detailState above, for the same non-eager reasoning
+	 * (loader.ts's bodyImageModules comment).
+	 * PHASE 6: unlike detailState, 'idle'/'loading'/'failed' no longer mean
+	 * "render nothing" -- the header strip itself (.project-detail-media)
+	 * always renders, title included, so the strip's position never jumps
+	 * once the image arrives; only the `<enhanced:img>` inside it is
+	 * conditional on 'loaded'. Before the image resolves (or if it never
+	 * does), the strip falls back to a flat surface tint (app.css) with the
+	 * scrim and title still on top -- a plain colored banner rather than an
+	 * empty gap.
+	 */
+	type ImageState =
+		| { status: 'idle' }
+		| { status: 'loading' }
+		| { status: 'loaded'; picture: Picture }
+		| { status: 'failed' };
+
+	let imageState = $state<ImageState>({ status: 'idle' });
+
+	$effect(() => {
+		const loader = project.detailImage;
+		if (!loader) {
+			imageState = { status: 'idle' };
+			return;
+		}
+
+		let cancelled = false;
+		imageState = { status: 'loading' };
+
+		loader()
+			.then((picture) => {
+				if (!cancelled) imageState = { status: 'loaded', picture };
+			})
+			.catch(() => {
+				if (!cancelled) imageState = { status: 'failed' };
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	});
 </script>
 
-<div class="project-detail-media">
-	<enhanced:img src={project.image} alt={project.title ?? ''} class="project-detail-img" loading="lazy" />
+<div
+	class="project-detail-media"
+	style={project.focalPoint
+		? `--focal-x: ${project.focalPoint.x}%; --focal-y: ${project.focalPoint.y}%`
+		: undefined}
+>
+	{#if imageState.status === 'loaded'}
+		<enhanced:img src={imageState.picture} alt="" class="project-detail-img" loading="lazy" />
+	{/if}
+	<h3 class="project-detail-title">{project.title ?? '—'}</h3>
 </div>
-<h3 class="project-detail-title">{project.title ?? '—'}</h3>
 <p class="project-detail-desc">{project.description[lang] ?? '—'}</p>
 <div class="project-tags">
 	{#each project.tags[lang] as tag, i (i)}

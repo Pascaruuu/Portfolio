@@ -50,6 +50,8 @@ The confusion matrix shows where that number is actually coming from: five of th
 
 <BodyImage image={images['confusion_matrix.png']} alt="Confusion matrix across the six waste categories" caption="Per-class recall on the held-out validation set. unknown is the one weak diagonal cell." />
 
+Glass, metal, paper, and plastic all cluster tightly on the diagonal, and most of the off-diagonal mass belongs to a single row rather than being spread evenly across every class. That's the shape you'd want to see before trusting a detector to make sorting decisions with no human in the loop — a model that's uniformly a little wrong everywhere is a much harder thing to fix than one with a single identifiable weak spot.
+
 <Callout label="Limitation">
 
 `unknown` drops to 81%, and most of what it misses gets predicted as background rather than as another material. That tracks — `unknown` is a catch-all by definition, so it has the least visual consistency to learn from, and the model tends to just not flag it rather than guess wrong.

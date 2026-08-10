@@ -10,5 +10,6 @@
 	},
 	"url": "https://github.com/Pascaruuu/AUPP-eCampus",
 	"image": "aupp_ecampus.png",
+	"focalPoint": { "x": 50, "y": 0 },
 	"date": "2026-01-06"
 }

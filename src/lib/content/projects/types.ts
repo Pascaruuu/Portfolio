@@ -45,6 +45,29 @@ export interface ProjectItem {
 	 */
 	date: string | null;
 	image: Picture;
+	/**
+	 * PHASE 6 (header-strip crop) — where the header strip's cover-crop
+	 * should anchor, as CSS `object-position` percentages (0 = top/left edge
+	 * of the source, 100 = bottom/right edge, 50 = centered — the default
+	 * when this is `null`). Optional: most images crop fine centered; this
+	 * only needs setting when the meaningful content sits off-center enough
+	 * that a 200px-tall strip would otherwise crop past it — see
+	 * CONTENT.md's "Focal point" section for guidance on picking a value.
+	 */
+	focalPoint: { x: number; y: number } | null;
+	/**
+	 * PHASE 5G — the same card image, at the wider derivative the detail
+	 * view's now-uncapped header image needs (loader.ts's bodyImageModules,
+	 * looked up by `image`'s own filename). A lazy loader like
+	 * `BodyImageLoader`, not a resolved `Picture` like `image` above,
+	 * because unlike the card grid's `image` this is only ever needed once
+	 * a visitor opens this specific project's detail view — see
+	 * ProjectDetail.svelte. `undefined` degrades to "no detail image
+	 * shown," the same silent tier as a body image lookup miss; in
+	 * practice it's always present (see loader.ts), just not typed as a
+	 * guarantee.
+	 */
+	detailImage: BodyImageLoader | undefined;
 	detail: { en: DetailLoader | null; ja: DetailLoader | null };
 	/**
 	 * PHASE 5E — every other image file in this project's directory,

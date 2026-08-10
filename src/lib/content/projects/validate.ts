@@ -82,6 +82,7 @@ export function validateProjectMeta(
 				url: string | null;
 				date: string | null;
 				image: string;
+				focalPoint: { x: number; y: number } | null;
 			};
 	  } {
 	const warnings: string[] = [];
@@ -129,6 +130,27 @@ export function validateProjectMeta(
 	const date = isValidDate(raw.date) ? raw.date : null;
 	if (date === null) warnings.push(`projects/${slug}: missing or unparseable date — using null`);
 
+	// PHASE 6 (header-strip crop): unlike every field above, this one is
+	// truly optional -- meta.json's table doesn't mark it "should be
+	// filled," and most projects will never need it (see CONTENT.md's
+	// "Focal point" section). So it warns only when PRESENT but malformed
+	// (wrong shape, or a coordinate outside 0-100), never when simply
+	// absent -- an absent focalPoint isn't a gap to flag, it's the expected
+	// default (centred crop). Same type-check-and-degrade shape as every
+	// other field, just without the "should be filled" warning tier.
+	const rawFocalPoint = raw.focalPoint;
+	let focalPoint: { x: number; y: number } | null = null;
+	if (rawFocalPoint !== undefined) {
+		const f = rawFocalPoint as Record<string, unknown>;
+		const x = typeof f?.x === 'number' && f.x >= 0 && f.x <= 100 ? f.x : null;
+		const y = typeof f?.y === 'number' && f.y >= 0 && f.y <= 100 ? f.y : null;
+		if (x !== null && y !== null) {
+			focalPoint = { x, y };
+		} else {
+			warnings.push(`projects/${slug}: invalid focalPoint — using centered crop`);
+		}
+	}
+
 	return {
 		skip: false,
 		warnings,
@@ -138,7 +160,8 @@ export function validateProjectMeta(
 			tags: { en: tagsEn, ja: tagsJa },
 			url,
 			date,
-			image
+			image,
+			focalPoint
 		}
 	};
 }
