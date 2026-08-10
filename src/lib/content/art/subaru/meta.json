@@ -1,0 +1,10 @@
+{
+	"title": { "en": "Subaru", "ja": "スバル" },
+	"description": {
+		"en": "A karuta-style commission of Subaru Natsuki from Re:Zero -Starting Life in Another World-, rendered in monochrome line art, winking beneath his hood.",
+		"ja": "『Re:ゼロから始める異世界生活』のナツキ・スバルを描いたカルタ風の依頼イラスト。フードをかぶり、ウインクする姿がモノクロの線画で表現されている。"
+	},
+	"category": "digital",
+	"date": "2026-06-13",
+	"images": ["subaru.png"]
+}
