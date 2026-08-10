@@ -10,5 +10,6 @@
 	},
 	"url": "https://github.com/Pascaruuu/Jewelry-Invoice",
 	"image": "jewelry_invoice.png",
+	"focalPoint": { "x": 50, "y": 0 },
 	"date": "2026-04-24"
 }

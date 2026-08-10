@@ -47,6 +47,7 @@ Every field below, no others. Extra fields are ignored, not rejected.
 | `url`             | string, the repo/demo link the card opens       | should be filled — see Failure behavior |
 | `date`            | string, `YYYY-MM-DD` — see `date` section below | should be filled — see Failure behavior |
 | `image`           | filename, relative to the project directory     | **required — its absence removes the project, see Failure behavior** |
+| `focalPoint`      | `{ x, y }`, 0-100 each — see "Focal point" below | optional, no warning if absent — see "Focal point" below |
 
 `title` is a single string, not bilingual — every existing project's name
 is a proper noun (a repo name) that doesn't change between languages.
@@ -97,10 +98,51 @@ loader happened to encounter them, same as art).
   extension (`.svg`, `.gif`, `.avif`, `.bmp`, …) is invisible to the section
   even if the file sits in the project directory and is named in `image` —
   it will be treated as not found.
-- Only the filename named in `image` is ever shown. A file that sits in the
-  project directory but isn't named in `image` is silently ignored.
-- Unlike art, a project shows exactly one image — there's no strip of
-  additional images, so `image` takes a single filename, not a list.
+- Only the filename named in `image` is ever shown as the **card** image.
+  Unlike art, a project's card shows exactly one image — there's no strip
+  of additional images, so `image` takes a single filename, not a list.
+- A file that sits in the project directory but isn't named in `image` is
+  not shown on the card, but PHASE 5E made it available to that project's
+  own detail write-up as a **body image** — see "Body images" below. It is
+  only truly unused if no `.svx` in that project references it.
+- **The detail view crops this same image to a 200px-tall strip** (narrower
+  panels shrink that to 120px — see `app.css`'s `.project-detail-media`),
+  full width, cover-cropped, with the title overlaid at its lower-left over
+  a gradient scrim. On a wide image this crop discards most of the frame,
+  not just the edges — see "Focal point" below for steering which part
+  survives. The card itself is unaffected: it still shows this image at its
+  own smaller size and aspect, uncropped by this rule.
+
+### Focal point
+
+Optional. Cover-cropping a 200px-tall strip out of a normal screenshot or
+photo can throw away the part that actually matters — a tall UI screenshot
+cropped to a thin strip by default shows whatever's in the vertical middle,
+which for most screenshots is empty space, not the header or the content
+that identifies it.
+
+```json
+"focalPoint": { "x": 50, "y": 0 }
+```
+
+`x` and `y` are each 0-100, the point in the source image that should stay
+in frame after the crop — `0` is the image's own left/top edge, `100` is
+its right/bottom edge, `50` is the middle. Maps directly to CSS
+`object-position` percentages. Omit the field entirely for a centered crop
+(`50, 50`) — this is the default and needs no field at all; most images
+crop fine centered, and this should stay the exception, not something every
+project sets out of habit.
+
+Only worth setting when the meaningful content sits far enough off-center
+that a centered crop would miss it — a full-page screenshot where the
+header/hero is what identifies the project (bias `y` toward `0`, its top
+edge) is the clearest case. An image with content spread evenly across the
+whole frame (a photo, a mosaic, a diagram with no single focal subject)
+doesn't need one; leave it out.
+
+Invalid shapes (missing `x` or `y`, a value outside 0-100, wrong type)
+degrade to a centered crop with a warning from `pnpm validate:projects` —
+same failure tier as a malformed `tags` array, not a skip.
 
 ## Detail file (optional)
 
@@ -131,13 +173,17 @@ needed. This only fires when the file's very first element is a paragraph;
 opening with a heading or one of the components below opts out silently.
 
 PHASE 5A: `<script>` import blocks are now permitted, but scoped to one
-purpose only — importing the three content components below. Nothing else
-about "don't embed Svelte components" has changed; this is not a general
-green light to import arbitrary components into a `.svx`.
+purpose only — importing the content components below. Nothing else about
+"don't embed Svelte components" has changed; this is not a general green
+light to import arbitrary components into a `.svx`.
+
+PHASE 5E: the script block may also declare `let { images } = $props();` —
+but only if the write-up uses `BodyImage` (below), which is the one
+component that needs it. Nothing else may be declared there.
 
 #### Content components
 
-Three components live at `src/lib/components/content/` and are meant to be
+Four components live at `src/lib/components/content/` and are meant to be
 imported and used directly in a `.svx` file, in place of folding the same
 information into prose:
 
@@ -150,6 +196,10 @@ information into prose:
   fits). Body content goes between the opening and closing tags as normal
   markdown — mdsvex only parses that inner content as markdown if there's a
   blank line after the opening tag and before the closing one.
+- **`BodyImage`** (PHASE 5E) — an image inside the write-up itself, distinct
+  from the one card image `meta.json` already points at. See "Body images"
+  below — it needs one extra line in the script block that the other three
+  don't.
 
 Example:
 
@@ -177,6 +227,93 @@ none.
 
 </Callout>
 ```
+
+#### Body images
+
+A write-up can include images beyond the one card image — a diagram, a
+screenshot, a chart — placed directly in the flow of the prose via
+`BodyImage`.
+
+**Where the file goes:** in the project's own directory, next to
+`meta.json`, same as the card image. **Same supported types too:** `.png`,
+`.jpg`, `.jpeg`, `.webp` only — anything else is invisible to `BodyImage`
+the same way an unsupported card `image` extension is invisible to the
+card.
+
+**How a body image is told apart from the card image:** by name, and only
+by name. Whichever filename `meta.json`'s `image` field names is the card
+image and is never available as a body image. Every *other* supported image
+file sitting in the project directory is a body-image candidate,
+automatically, with no separate field to list them — drop the file in and
+reference it by filename. (This means a file can't do double duty as both
+the card and a body image; if you need the same picture in both places,
+duplicate the file under two names.)
+
+**Using it:**
+
+```
+<script>
+	import BodyImage from '$lib/components/content/BodyImage.svelte';
+
+	let { images } = $props();
+</script>
+
+<BodyImage
+	image={images['confusion_matrix.png']}
+	alt="Confusion matrix across the six waste categories"
+	caption="Per-class recall on the held-out validation set."
+/>
+```
+
+`images` is supplied automatically by the detail panel — it is not
+something you build or import yourself, just destructure it with
+`let { images } = $props();` and index into it by filename. `alt` is plain
+accessible alt text (required in spirit, though nothing enforces it).
+`caption` is optional — omit it for an uncaptioned image.
+
+**Sizing:** handled entirely by the pipeline. A body image floats left,
+capped at 700px, with the surrounding prose (paragraphs, lists,
+blockquotes) wrapping down its right side instead of the image sitting
+alone with empty space beside it. Headings and the other three content
+components below (StatBlock, SpecList, Callout) — plus a second body
+image, if there is one — always start below any floated image instead of
+squeezing into that wrap column; a heading pulled up beside an image
+would read as belonging to it, not to the section it's actually
+introducing.
+
+On a narrower panel where a 700px float plus a readable strip of wrapped
+text won't both fit, the image drops the float entirely and becomes a
+full-width block instead, same as before this floating behavior existed.
+This is a panel-width threshold, not a fixed viewport breakpoint — a
+panel dragged narrower (or a narrow phone) triggers it exactly the same
+way, and the panel's own default width already sits just under this
+threshold, so widening the panel (or going fullscreen) is what reveals
+the float.
+
+Served at a fixed 850px derivative (the widest a floated-or-fallback body
+image can ever actually render at — see `loader.ts`'s
+`writeupBodyImageModules`, a different, narrower glob than the one
+feeding the header strip), downscaled by the browser at narrower widths
+and upscaled past its own source resolution if the source itself is
+narrower than that — so don't hand-pick dimensions or crop for a specific
+layout, but a source narrower than roughly 850px will look a little soft
+at its own float width.
+
+**Failure behavior:** a body image is the third tier — neither "skips the
+project" nor "shows a dash." A typo'd filename, a filename that doesn't
+resolve to a supported image on disk, or the filename of the project's own
+card image (deliberately excluded, see above) all produce the same
+result: `images['whatever']` is `undefined`, `BodyImage` renders nothing at
+that spot, and the rest of the write-up is completely unaffected. There is
+no broken-image icon and no error text — this is a silent degrade by
+design, the same tier as a missing `detail.<lang>.svx` file. `pnpm
+validate:projects` does not check body image references — they live inside
+`.svx` markup, which the validator doesn't parse (it only checks
+`meta.json` and on-disk file existence, same scope as always) — check the
+rendered panel yourself if you add one.
+
+**No click-to-enlarge.** A body image is not a lightbox trigger — that's
+the art gallery's own pattern (`src/lib/content/art/`), not this one.
 
 ### Loading and failure behavior
 

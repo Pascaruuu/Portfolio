@@ -2,6 +2,9 @@
 	import StatBlock from '$lib/components/content/StatBlock.svelte';
 	import SpecList from '$lib/components/content/SpecList.svelte';
 	import Callout from '$lib/components/content/Callout.svelte';
+	import BodyImage from '$lib/components/content/BodyImage.svelte';
+
+	let { images } = $props();
 </script>
 
 このプロジェクトは、「ゴミは正しく仕分けられて初めてリサイクルが機能する」という単純な不満から始まりました。ガラスなのか「その他」のプラスチックなのかを人がぱっと見て判断するのは、そもそも無理のある仕組みです。この最初の分類作業を、小さな物体検出モデルでどこまで自動化できるか試してみたいと思いました。
@@ -44,6 +47,10 @@ mAPは、予測したバウンディングボックスが正解とどれだけ�
 ### 弱いところ
 
 混同行列を見ると、この数字の中身がわかります。6クラスのうち5クラスはrecallが94〜99%に収まっています。
+
+<BodyImage image={images['confusion_matrix.png']} alt="6つの廃棄物カテゴリの混同行列" caption="検証データにおけるクラスごとのrecall。対角線上でunknownだけが弱い。" />
+
+ガラス・金属・紙・プラスチックは対角線上にきれいに集まっていて、対角線から外れた分もほとんどが1行に集中しており、全クラスに薄く均等に散らばっているわけではありません。人の目を介さずに仕分けの判断をモデルに任せる前に確認しておきたい形です。どこもかしこも少しずつ間違っているモデルより、弱点がはっきり1つに絞れているモデルのほうが、直すのはずっと簡単です。
 
 <Callout label="弱点">
 
