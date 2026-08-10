@@ -5,6 +5,8 @@ import {
 	AUTO_SPEED,
 	HOVER_RADIUS_SQ,
 	INERTIA,
+	LAND_DUST_PULSE_CSS,
+	LAND_DUST_SIZE_CSS,
 	MOBILE_VERTICAL_SHIFT_RATIO,
 	PANEL_SHIFT_RATIO,
 	ROTATION_LERP,
@@ -114,7 +116,12 @@ export async function initSphere(
 
 	// ── Fibonacci particle sphere ────────────────────────
 	const particleCount = viewport.isDesktop ? 28000 : 14000;
-	const particleSystem = createParticleSystem(sphereGroup, particleCount, terrainMap);
+	const particleSystem = createParticleSystem(
+		sphereGroup,
+		particleCount,
+		terrainMap,
+		renderer.getPixelRatio()
+	);
 
 	// ── Hotspot nodes ────────────────────────────────────
 	const { hotspotEntries, clickMeshes } = buildHotspots(sphereGroup, terrainMap);
@@ -234,7 +241,7 @@ export async function initSphere(
 		keyLight.position.y = 120 + Math.sin(pulse * 0.42) * 70;
 		keyLight.position.z = 290 + Math.cos(pulse * 0.26) * 90;
 		fillLight.position.x = -320 + Math.sin(pulse * 0.3) * 80;
-		particleSystem.particleMaterial.size = 3.63 + Math.sin(pulse * 1.15) * 0.12;
+		particleSystem.particleMaterial.size = LAND_DUST_SIZE_CSS + Math.sin(pulse * 1.15) * LAND_DUST_PULSE_CSS;
 		particleSystem.particleMaterial.uniforms.uTime.value = pulse;
 
 		if (state.focusedSectionId) {

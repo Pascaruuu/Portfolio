@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { SPHERE_R, TERRAIN_SEA_LEVEL } from './constants.js';
+import { LAND_DUST_MAX_SIZE_CSS, SPHERE_R, TERRAIN_SEA_LEVEL } from './constants.js';
 import { buildParticles } from './helpers.js';
 import type { TerrainMap } from './terrain-bake.js';
 
@@ -72,7 +72,12 @@ function buildLandBiasedParticles(targetCount: number, r: number, terrainMap: Te
 	return { geometry, terrainValues: selectedTerrainValues };
 }
 
-export function createParticleSystem(sphereGroup: THREE.Group, particleCount: number, terrainMap: TerrainMap): ParticleSystem {
+export function createParticleSystem(
+	sphereGroup: THREE.Group,
+	particleCount: number,
+	terrainMap: TerrainMap,
+	pixelRatio: number
+): ParticleSystem {
 	const { geometry: particleGeometry, terrainValues } = buildLandBiasedParticles(particleCount, SPHERE_R, terrainMap);
 	particleGeometry.setAttribute('terrain', new THREE.BufferAttribute(terrainValues, 1));
 	const flickerPhases = new Float32Array(particleCount);
@@ -105,7 +110,8 @@ export function createParticleSystem(sphereGroup: THREE.Group, particleCount: nu
 			uCharCount: { value: CHAR_COUNT },
 			uTime: { value: 0 },
 			uOpacity: { value: 0.9 },
-			uSize: { value: 10.0 },
+			uSize: { value: 7.0 },
+			uPixelRatio: { value: pixelRatio },
 		},
 		vertexShader: `
 			attribute float terrain;
@@ -114,6 +120,7 @@ export function createParticleSystem(sphereGroup: THREE.Group, particleCount: nu
 			uniform float uTime;
 			uniform float uCharCount;
 			uniform float uSize;
+			uniform float uPixelRatio;
 			varying vec3 vColor;
 			varying float vTerrain;
 			varying float vFlicker;
@@ -124,7 +131,8 @@ export function createParticleSystem(sphereGroup: THREE.Group, particleCount: nu
 				// Flicker: slow phase-offset sine mapped to char index
 				vFlicker = mod(floor((sin(uTime * 0.8 + flickerPhase) * 0.5 + 0.5) * float(uCharCount - 1.0) + 0.5), float(uCharCount));
 				vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-				gl_PointSize = uSize * (300.0 / -mvPosition.z);
+				float pointSizeCss = min(uSize * (300.0 / -mvPosition.z), ${LAND_DUST_MAX_SIZE_CSS.toFixed(1)});
+				gl_PointSize = pointSizeCss * uPixelRatio;
 				gl_Position = projectionMatrix * mvPosition;
 			}
 		`,

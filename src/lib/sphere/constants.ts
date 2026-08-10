@@ -55,6 +55,22 @@ export const ASCII_CELL_SIZE_DESKTOP = 10;
  */
 export const ASCII_CELL_SIZE_MOBILE = 7;
 
+/**
+ * Land-dust particle diameter in CSS pixels before perspective attenuation.
+ * The particle shader converts this to the renderer's device pixels itself.
+ */
+export const LAND_DUST_SIZE_CSS = 7;
+
+/**
+ * Keep a near-camera mote inside one ASCII cell at every viewport. This
+ * preserves the dust read instead of letting focused particles turn into
+ * multi-cell blobs.
+ */
+export const LAND_DUST_MAX_SIZE_CSS = ASCII_CELL_SIZE_MOBILE - 1;
+
+/** Subtle per-particle-field breathing, measured in CSS pixels. */
+export const LAND_DUST_PULSE_CSS = 0.24;
+
 /** Fraction of viewport width the sphere shifts left (desktop) when a panel is open. */
 export const SHIFT_RATIO = 0.22;
 

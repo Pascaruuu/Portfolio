@@ -12,6 +12,7 @@ import {
 	TERRAIN_SEA_LEVEL,
 } from './constants.js';
 import { viewport } from '../viewport.svelte.js';
+import { TERRAIN_NOISE_GLSL } from './terrainNoise.js';
 
 const FRAGMENT = /* glsl */`
 uniform sampler2D uCharacters;
@@ -35,36 +36,7 @@ const float LAND_SEGMENT_WIDTH = LAND_GLYPH_CEILING_INDEX - LAND_GLYPH_FLOOR_IND
 const float LAND_ELEVATION_CEILING = 0.18; // measured (500k-sample fbm survey): ~p95 of land elevation above sea level; rare highest ridges saturate here so the rest of land spreads across the full segment
 const float RIM_ONSET_NV = 0.30; // N·V where the rim band begins; chosen to match the removed discard threshold below, so erosion's fade spans exactly the band that used to render nothing
 
-float hash3(vec3 p) {
-  p = fract(p * vec3(443.897, 441.423, 437.195));
-  p += dot(p, p.yzx + 19.19);
-  return fract((p.x + p.y) * p.z);
-}
-
-float noise3(vec3 p) {
-  vec3 i = floor(p);
-  vec3 f = fract(p);
-  f = f * f * (3.0 - 2.0 * f);
-  return mix(
-    mix(mix(hash3(i), hash3(i+vec3(1,0,0)), f.x),
-        mix(hash3(i+vec3(0,1,0)), hash3(i+vec3(1,1,0)), f.x), f.y),
-    mix(mix(hash3(i+vec3(0,0,1)), hash3(i+vec3(1,0,1)), f.x),
-        mix(hash3(i+vec3(0,1,1)), hash3(i+vec3(1,1,1)), f.x), f.y),
-    f.z
-  );
-}
-
-// FBM for more natural continent shapes
-float fbm(vec3 p) {
-  float v = 0.0;
-  float a = 0.5;
-  for (int i = 0; i < 4; i++) {
-    v += a * noise3(p);
-    p = p * 2.1 + vec3(1.7, 9.2, 3.4);
-    a *= 0.5;
-  }
-  return v;
-}
+${TERRAIN_NOISE_GLSL}
 
 float hash21(vec2 p) {
   vec3 p3 = fract(vec3(p.xyx) * 0.1031);
