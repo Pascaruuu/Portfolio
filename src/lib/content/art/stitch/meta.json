@@ -1,0 +1,10 @@
+{
+	"title": { "en": "Stitch", "ja": "スティッチ" },
+	"description": {
+		"en": "A karuta-style commission of Stitch from Lilo & Stitch, curled up asleep on a sandy floor beside a plush toy, framed in a retro computer-window border.",
+		"ja": "『リロ・アンド・スティッチ』のスティッチを描いたカルタ風の依頼イラスト。砂浜の床でぬいぐるみのそばに丸くなって眠る姿を、レトロなウィンドウ枠で縁取っている。"
+	},
+	"category": "digital",
+	"date": "2025-01-21",
+	"images": ["stitch.png"]
+}
