@@ -1,0 +1,10 @@
+{
+	"title": { "en": "Nicolai", "ja": "ニコライ" },
+	"description": {
+		"en": "A pencil portrait of Nicolai, a high school friend.",
+		"ja": "高校時代の友人、ニコライを描いた鉛筆画。"
+	},
+	"category": "hand-drawn",
+	"date": "2020-06-14",
+	"images": ["nicolai.jpg"]
+}
