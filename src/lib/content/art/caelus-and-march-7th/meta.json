@@ -1,0 +1,10 @@
+{
+	"title": { "en": "Caelus & March 7th", "ja": "カエルス&マーチ・セブンス" },
+	"description": {
+		"en": "A pair of karuta-style commissions of Caelus and March 7th from Honkai: Star Rail, styled as old-west \"Wanted\" posters.",
+		"ja": "『崩壊:スターレイル』のカエルスとマーチ・セブンスを描いたカルタ風の依頼イラスト二枚組。西部劇風の「指名手配」ポスターを模した意匠で表現されている。"
+	},
+	"category": "digital",
+	"date": "2023-05-25",
+	"images": ["march-7th.png", "caelus.png"]
+}
