@@ -1,0 +1,10 @@
+{
+	"title": { "en": "Guts", "ja": "ガッツ" },
+	"description": {
+		"en": "A karuta-style commission of Guts from Berserk, rendered in stark black-and-white ink-style linework with a glowing white border.",
+		"ja": "『ベルセルク』のガッツを描いたカルタ風の依頼イラスト。白黒のインク調の線画で表現され、光る白い額縁で縁取られている。"
+	},
+	"category": "digital",
+	"date": "2022-05-08",
+	"images": ["guts-2.png"]
+}
