@@ -10,7 +10,8 @@ interface LanguageStrings {
 		about: {
 			label: string;
 			heading: string;
-			paragraphs: string[];
+			descriptor: string;
+			blocks: { label?: string; paragraphs: string[] }[];
 		};
 		skills: {
 			label: string;
@@ -76,10 +77,37 @@ export const languageStrings: Record<Lang, LanguageStrings> = {
 			about: {
 				label: 'About',
 				heading: 'Who I Am',
-				paragraphs: [
-					"I'm TUY Pascal, an IT student with a passion for web development and digital creation. I build small applications and systems to understand how technology works in practice.",
-					"I'm drawn to the intersection of design and code: creating things that are both functional and visually considered. I also explore computer vision, cybersecurity, and automation.",
-					'Currently improving my technical foundations through personal and academic projects, always focused on steady, practical progress.'
+				descriptor: 'Full-stack engineer',
+				blocks: [
+					{
+						paragraphs: [
+							"I finished my IT studies and now work as an intern at NextMake, building web applications. I work full-stack — front and back end both, handling design, implementation, testing, and deployment end to end on my own."
+						]
+					},
+					{
+						label: 'What I build',
+						paragraphs: [
+							"I've built AI into production systems — most recently one that reads purchase order contents automatically, with the goal of cutting manual entry work. Getting it to genuinely usable accuracy meant comparing several models and testing them against real documents."
+						]
+					},
+					{
+						label: 'How I work',
+						paragraphs: [
+							'I lead the intern team — dividing up work, keeping the process organised, and reporting progress to the client in Japanese every week. Written reports and day-to-day communication in Japanese are both part of the job.'
+						]
+					},
+					{
+						label: 'Goal',
+						paragraphs: [
+							"My goal is to work as a software engineer connecting Japan and Cambodia. First by working in Japan, learning how things are done here and how people work. Then using that experience on both sides — contributing to Japan's continued growth, and helping improve technology, infrastructure, and quality of life in Cambodia."
+						]
+					},
+					{
+						label: 'Philosophy',
+						paragraphs: [
+							"I'm the kind of person who's always asking whether something could be less tedious. Finding the waste in a process and solving it structurally is what I'm good at. The other half of that is not stopping when it gets difficult — most things worth building are unpleasant somewhere in the middle, and the way out is through."
+						]
+					}
 				]
 			},
 			skills: {
@@ -156,10 +184,37 @@ export const languageStrings: Record<Lang, LanguageStrings> = {
 			about: {
 				label: '私について',
 				heading: '自己紹介',
-				paragraphs: [
-					'TUY Pascalといいます。ウェブ開発とデジタルクリエーションに情熱を持つITの学生です。技術がどのように機能するかを理解するため、小さなアプリケーションやシステムを構築しています。',
-					'デザインとコードの交差点に特に惹かれており、機能的で視覚的に洗練されたものを作ることが好きです。コンピュータビジョン、サイバーセキュリティ、自動化も探求しています。',
-					'個人的および学術的なプロジェクトを通じて技術的な基礎を向上させており、常に着実で実践的な進歩に集中しています。'
+				descriptor: 'フルスタックエンジニア',
+				blocks: [
+					{
+						paragraphs: [
+							'ITの学業を終え、現在はNextMake株式会社でインターンとしてWebアプリケーションの開発に携わっています。フルスタックエンジニアとして画面側とサーバー側の両方を一人で担当し、設計から実装、テスト、導入までを一貫して進めています。'
+						]
+					},
+					{
+						label: '作っているもの',
+						paragraphs: [
+							'業務システムにAIを組み込む開発の経験があります。注文書の内容を自動で読み取るシステムの開発に携わり、手入力の作業を減らすことを目指して取り組みました。いくつかのAIモデルを比較しながら試し、実際に使えるレベルの精度に近づけていきました。'
+						]
+					},
+					{
+						label: '働き方',
+						paragraphs: [
+							'チームでの開発にも取り組んでいます。インターンチームのとりまとめを行い、作業の分担や進め方を整理しながら、毎週日本語でクライアントへ進捗を報告しています。日本語での報告書作成やコミュニケーションにも対応しています。'
+						]
+					},
+					{
+						label: '目標',
+						paragraphs: [
+							'私の目標は、ソフトウェアエンジニアとして日本とカンボジアをつなぐことです。まずは日本で働き、日本の文化や仕事の進め方を学びたいと考えています。そこで得た経験を活かして、日本のこれからの成長に貢献するとともに、カンボジアの技術やインフラ、生活の質の向上にも力を尽くしたいです。'
+						]
+					},
+					{
+						label: '考え方',
+						paragraphs: [
+							'普段から「もっと便利にできないか」と考える性格で、業務の無駄を見つけ、仕組みで解決することを得意としています。同時に、途中でしんどくなっても手を止めないことを大切にしています。価値のあるものは必ずどこかで大変になりますが、逃げずに向き合った先に結果があると思っています。'
+						]
+					}
 				]
 			},
 			skills: {

@@ -28,10 +28,12 @@ export function getHeading(id: SectionId, lang: Lang): string {
 
 // ─── Typed content getters ────────────────────────────
 export function getAbout(lang: Lang): AboutContent {
-	const about = languageStrings[lang].sections.about;
+	const { label, descriptor, blocks } = languageStrings[lang].sections.about;
 
 	return {
-		...about,
+		label,
+		descriptor,
+		blocks,
 		social: socialLinks
 	};
 }

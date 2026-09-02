@@ -13,10 +13,15 @@ export interface ExperienceItem {
 	desc: string;
 }
 
+export interface AboutBlock {
+	label?: string;
+	paragraphs: string[];
+}
+
 export interface AboutContent {
 	label: string;
-	heading: string;
-	paragraphs: string[];
+	descriptor: string;
+	blocks: AboutBlock[];
 	social: { label: string; url: string }[];
 }
 

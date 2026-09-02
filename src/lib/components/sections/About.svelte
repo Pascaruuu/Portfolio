@@ -9,16 +9,29 @@
 	const ui = $derived(getUi(lang));
 </script>
 
-<enhanced:img src={pfpImage} alt={ui.profilePhotoAlt} class="about-photo" />
-<div class="about-body">
-	{#each c.paragraphs as para, i (i)}
-		<p>{para}</p>
-	{/each}
-</div>
-<div class="about-social">
-	{#each c.social as link (link.url)}
-		<a href={link.url} target="_blank" rel="external noopener noreferrer" class="pill">
-			{link.label}
-		</a>
-	{/each}
+<div class="about-layout">
+	<div class="about-rail">
+		<enhanced:img src={pfpImage} alt={ui.profilePhotoAlt} class="about-photo" />
+		<p class="about-name">{ui.hero.name}</p>
+		<p class="about-descriptor">{c.descriptor}</p>
+		<div class="about-social">
+			{#each c.social as link (link.url)}
+				<a href={link.url} target="_blank" rel="external noopener noreferrer" class="pill">
+					{link.label}
+				</a>
+			{/each}
+		</div>
+	</div>
+	<div class="about-body">
+		{#each c.blocks as block, i (i)}
+			<section class="about-block">
+				{#if block.label}
+					<h3 class="about-block-label">{block.label}</h3>
+				{/if}
+				{#each block.paragraphs as para, j (j)}
+					<p>{para}</p>
+				{/each}
+			</section>
+		{/each}
+	</div>
 </div>

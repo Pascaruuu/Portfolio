@@ -698,14 +698,86 @@ html {
 }
 
 /* ─── About ──────────────────────────────────────────── */
+/* Two columns above 540px of .panel-body's own inline-size (inherited
+   container-type: inline-size, same threshold Projects' @container uses
+   below) -- rail is fixed-width, body fills the rest. Below 540px this
+   collapses to a single column; see the @container block below. */
+.about-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 32px;
+  align-items: start;
+}
+
+/* Sticks against .panel-body's own scroll (no nested scroll container --
+   .panel-body-content has no CSS of its own to interfere, and .panel-body's
+   overflow-y:auto is the only scroll box involved, so panelScrollFade's
+   ResizeObserver on .panel-body/.panel-body-content is unaffected). top
+   matches .panel-body's own padding-top (20px) so the rail doesn't butt
+   against the panel edge once pinned. The rail only visibly holds still
+   for as long as .about-body's column stays taller than it -- once the
+   two are level there's no travel left and it scrolls with the rest. */
+.about-rail {
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 20px;
+}
+
+/* height: auto is required, not decorative -- enhanced:img's generated <img>
+   carries width/height attributes (the source's intrinsic pixels), which
+   set a definite presentational height. Without an explicit height here to
+   override it, that attribute wins and aspect-ratio is never consulted
+   (aspect-ratio only fills in a dimension left auto). */
 .about-photo {
-  width: 76px;
-  height: 76px;
-  border-radius: 50%;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 5;
   object-fit: cover;
-  border: 2px solid var(--border);
-  margin-bottom: 24px;
+  object-position: center;
+  border-radius: 8px;
   display: block;
+}
+
+.about-name {
+  font-size: 1.0625rem;
+  font-weight: 500;
+  color: var(--text);
+  margin-top: 16px;
+}
+
+.about-descriptor {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.about-social {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.about-block {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.about-block:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.about-block-label {
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 10px;
 }
 
 .about-body p {
@@ -715,11 +787,27 @@ html {
   margin-bottom: 14px;
 }
 
-.about-social {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 24px;
+/* Below 540px of .panel-body's content width, collapse to one column:
+   portrait (now wider than tall -- a full-width rail reads badly at a
+   tall 4:5 ratio), name, descriptor, pills, then the block sequence.
+   Block styling itself (label, hairline, paragraphs) is unchanged --
+   only .about-layout and .about-photo react here. */
+@container (max-width: 540px) {
+  .about-layout {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .about-photo {
+    aspect-ratio: 3 / 2;
+  }
+
+  /* Rail sits above the content column in this stacked layout, not beside
+     it -- sticky would pin it over text as the page scrolls, so it's off
+     here. */
+  .about-rail {
+    position: static;
+  }
 }
 
 /* ─── Skills ─────────────────────────────────────────── */
@@ -2368,12 +2456,6 @@ html {
 
   .panel-heading {
     font-size: clamp(1.25rem, 5.8vw, 1.55rem);
-  }
-
-  .about-photo {
-    width: 56px;
-    height: 56px;
-    margin-bottom: 14px;
   }
 
   .about-body p,
