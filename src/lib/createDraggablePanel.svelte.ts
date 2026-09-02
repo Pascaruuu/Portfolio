@@ -2,7 +2,7 @@ import { viewport } from './viewport.svelte.js';
 import { PANEL_GUTTER, PANEL_MAX_W, PANEL_H_GUTTER, PANEL_DEFAULT_H_VH, MIN_W, MIN_H } from './panelGeometry.js';
 
 export const RESIZE_DIRS = ['n', 's', 'e', 'w', 'nw', 'ne', 'sw', 'se'] as const;
-export type ResizeDir = typeof RESIZE_DIRS[number];
+type ResizeDir = typeof RESIZE_DIRS[number];
 
 export function createDraggablePanel() {
 	let x = $state(0);

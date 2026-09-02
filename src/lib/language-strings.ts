@@ -142,7 +142,7 @@ export const languageStrings: Record<Lang, LanguageStrings> = {
 			},
 			art: {
 				label: 'ART',
-				heading: 'Art',
+				heading: 'My Art',
 				filterLabel: 'Filter by category',
 				filters: {
 					all: 'All',
@@ -249,7 +249,7 @@ export const languageStrings: Record<Lang, LanguageStrings> = {
 			},
 			art: {
 				label: 'アート',
-				heading: 'アート',
+				heading: '作品集',
 				filterLabel: 'カテゴリーで絞り込む',
 				filters: {
 					all: 'すべて',
