@@ -32,12 +32,10 @@ export function createDraggablePanel() {
 		initialized = true;
 		requestAnimationFrame(() => {
 			if (!el) return;
-			const measuredH = el.getBoundingClientRect().height;
-			// Cap tall content at the default target (panel-body scrolls the
-			// rest); shorter content keeps its own natural height rather than
-			// being stretched up to fill the target.
+			// Opens at the default target regardless of content length;
+			// .panel-body's own overflow-y: auto handles taller content.
 			const targetH = Math.min(viewport.vh * PANEL_DEFAULT_H_VH, viewport.vh - PANEL_GUTTER * 2);
-			h = Math.min(measuredH, targetH);
+			h = targetH;
 			y = Math.max(0, (viewport.vh - h) / 2);
 		});
 	}

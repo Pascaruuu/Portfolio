@@ -327,7 +327,7 @@ html {
   top: 50%;
   transform: translateY(-50%);
   width: min(var(--panel-max-w), calc(100vw - var(--panel-gutter) * 2));
-  max-height: 68vh;
+  max-height: 75vh;
   background: var(--panel-bg);
   border: 1px solid var(--border-strong);
   border-radius: 14px;
@@ -343,7 +343,7 @@ html {
 }
 
 /* JS-positioned (desktop, panelInitialized): inline left/top/width/height
-   drive layout, so the CSS centering transform and 68vh cap must not apply,
+   drive layout, so the CSS centering transform and 75vh cap must not apply,
    and the entrance animation must not re-introduce translateY(-50%). */
 .popup-card.js-positioned {
   transform: none;
